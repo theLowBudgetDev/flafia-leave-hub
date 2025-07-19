@@ -1,6 +1,8 @@
+
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { CheckCircle, Clock, Users, FileText } from "lucide-react";
+import { Link } from "react-router-dom";
 
 export const Hero = () => {
   const features = [
@@ -40,20 +42,24 @@ export const Hero = () => {
             leave applications for all university staff.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" className="text-base px-8">
-              Get Started
-            </Button>
-            <Button variant="outline" size="lg" className="text-base px-8">
-              Learn More
-            </Button>
+            <Link to="/apply">
+              <Button size="lg" className="text-base px-8">
+                Get Started
+              </Button>
+            </Link>
+            <Link to="/about">
+              <Button variant="outline" size="lg" className="text-base px-8">
+                Learn More
+              </Button>
+            </Link>
           </div>
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
           {features.map((feature, index) => (
             <Card key={index} className="p-6 text-center hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-              <div className="w-12 h-12 bg-accent rounded-lg flex items-center justify-center mx-auto mb-4">
-                <feature.icon className="h-6 w-6 text-primary" />
+              <div className="w-12 h-12 bg-accent/10 rounded-lg flex items-center justify-center mx-auto mb-4">
+                <feature.icon className="h-6 w-6 text-accent" />
               </div>
               <h3 className="text-lg font-semibold text-foreground mb-2">
                 {feature.title}
@@ -73,9 +79,11 @@ export const Hero = () => {
             Join hundreds of university staff who have already made the switch to efficient, 
             paperless leave management.
           </p>
-          <Button size="lg" className="text-base px-8">
-            Start Your Application
-          </Button>
+          <Link to="/apply">
+            <Button size="lg" className="text-base px-8">
+              Start Your Application
+            </Button>
+          </Link>
         </div>
       </div>
     </section>
