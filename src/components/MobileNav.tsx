@@ -2,11 +2,17 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Menu, X, GraduationCap, Bell, User } from "lucide-react";
+import { Menu, GraduationCap } from "lucide-react";
 import { Link } from "react-router-dom";
+import { NotificationDropdown } from "./NotificationDropdown";
+import { ProfileDropdown } from "./ProfileDropdown";
+import { Separator } from "@/components/ui/separator";
 
 export const MobileNav = () => {
   const [open, setOpen] = useState(false);
+  
+  // Mock authentication state - in real app this would come from auth context
+  const isAuthenticated = false;
 
   const navLinks = [
     { href: "/dashboard", label: "Dashboard" },
@@ -18,7 +24,7 @@ export const MobileNav = () => {
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="md:hidden">
+        <Button variant="ghost" size="icon" className="lg:hidden">
           <Menu className="h-5 w-5" />
           <span className="sr-only">Toggle menu</span>
         </Button>
@@ -35,12 +41,12 @@ export const MobileNav = () => {
             </div>
           </div>
           
-          <nav className="flex flex-col gap-4 mb-8">
+          <nav className="flex flex-col gap-2 mb-6">
             {navLinks.map((link) => (
               <Link
                 key={link.href}
                 to={link.href}
-                className="text-foreground hover:text-primary transition-colors py-2 px-4 rounded-md hover:bg-accent"
+                className="text-foreground hover:text-primary transition-colors py-3 px-4 rounded-md hover:bg-accent text-left"
                 onClick={() => setOpen(false)}
               >
                 {link.label}
@@ -48,18 +54,30 @@ export const MobileNav = () => {
             ))}
           </nav>
 
-          <div className="mt-auto space-y-4">
-            <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon">
-                <Bell className="h-4 w-4" />
+          {isAuthenticated && (
+            <>
+              <Separator className="mb-6" />
+              <div className="space-y-4 mb-6">
+                <div className="flex items-center justify-between px-4">
+                  <span className="text-sm font-medium">Notifications</span>
+                  <NotificationDropdown />
+                </div>
+                <div className="flex items-center justify-between px-4">
+                  <span className="text-sm font-medium">Profile</span>
+                  <ProfileDropdown />
+                </div>
+              </div>
+            </>
+          )}
+
+          <div className="mt-auto">
+            {!isAuthenticated && (
+              <Button className="w-full" asChild>
+                <Link to="/signin" onClick={() => setOpen(false)}>
+                  Sign In
+                </Link>
               </Button>
-              <Button variant="ghost" size="icon">
-                <User className="h-4 w-4" />
-              </Button>
-            </div>
-            <Button className="w-full">
-              Sign In
-            </Button>
+            )}
           </div>
         </div>
       </SheetContent>

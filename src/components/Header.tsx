@@ -1,10 +1,16 @@
 
 import { Button } from "@/components/ui/button";
-import { GraduationCap, User, Bell } from "lucide-react";
+import { GraduationCap } from "lucide-react";
 import { Link } from "react-router-dom";
 import { MobileNav } from "./MobileNav";
+import { NotificationDropdown } from "./NotificationDropdown";
+import { ProfileDropdown } from "./ProfileDropdown";
+import { ThemeToggle } from "./ThemeToggle";
 
 export const Header = () => {
+  // Mock authentication state - in real app this would come from auth context
+  const isAuthenticated = false;
+
   return (
     <header className="bg-card border-b border-border sticky top-0 z-50 backdrop-blur-sm bg-card/95">
       <div className="container mx-auto px-6 py-4">
@@ -19,7 +25,8 @@ export const Header = () => {
             </div>
           </Link>
           
-          <nav className="hidden md:flex items-center gap-6">
+          {/* Desktop Navigation - Hidden on tablet and mobile */}
+          <nav className="hidden lg:flex items-center gap-6">
             <Link to="/dashboard" className="text-foreground hover:text-primary transition-colors">
               Dashboard
             </Link>
@@ -34,21 +41,35 @@ export const Header = () => {
             </Link>
           </nav>
 
-          <div className="hidden md:flex items-center gap-3">
-            <Button variant="ghost" size="icon">
-              <Bell className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon">
-              <User className="h-4 w-4" />
-            </Button>
-            <Link to="/signin">
-              <Button variant="outline">
-                Sign In
-              </Button>
-            </Link>
+          {/* Desktop Controls - Hidden on tablet and mobile */}
+          <div className="hidden lg:flex items-center gap-3">
+            <ThemeToggle />
+            {isAuthenticated ? (
+              <>
+                <NotificationDropdown />
+                <ProfileDropdown />
+              </>
+            ) : (
+              <Link to="/signin">
+                <Button variant="outline">
+                  Sign In
+                </Button>
+              </Link>
+            )}
           </div>
 
-          <MobileNav />
+          {/* Tablet and Mobile Controls */}
+          <div className="flex lg:hidden items-center gap-3">
+            <ThemeToggle />
+            {!isAuthenticated && (
+              <Link to="/signin">
+                <Button variant="outline" size="sm">
+                  Sign In
+                </Button>
+              </Link>
+            )}
+            <MobileNav />
+          </div>
         </div>
       </div>
     </header>

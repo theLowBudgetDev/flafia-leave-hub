@@ -7,10 +7,13 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, Filter, Eye, Download } from "lucide-react";
 import { useState } from "react";
+import { LeaveDetailsDialog } from "@/components/LeaveDetailsDialog";
 
 const History = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [selectedLeave, setSelectedLeave] = useState<any>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const leaveHistory = [
     {
@@ -76,6 +79,11 @@ const History = () => {
     return matchesSearch && matchesStatus;
   });
 
+  const handleViewDetails = (leave: any) => {
+    setSelectedLeave(leave);
+    setIsDialogOpen(true);
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -87,7 +95,8 @@ const History = () => {
         </div>
 
         <Card className="p-6 mb-6">
-          <div className="flex flex-col md:flex-row gap-4 mb-6">
+          {/* Improved tablet layout - single row on tablet and desktop */}
+          <div className="flex flex-col sm:flex-row gap-4 mb-6">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -99,7 +108,7 @@ const History = () => {
             </div>
             
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full md:w-48">
+              <SelectTrigger className="w-full sm:w-48">
                 <Filter className="h-4 w-4 mr-2" />
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
@@ -111,7 +120,7 @@ const History = () => {
               </SelectContent>
             </Select>
 
-            <Button variant="outline">
+            <Button variant="outline" className="w-full sm:w-auto">
               <Download className="h-4 w-4 mr-2" />
               Export
             </Button>
@@ -153,7 +162,11 @@ const History = () => {
                       )}
                     </div>
                     
-                    <Button variant="outline" size="sm">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleViewDetails(item)}
+                    >
                       <Eye className="h-4 w-4 mr-2" />
                       View Details
                     </Button>
@@ -166,6 +179,14 @@ const History = () => {
       </main>
 
       <Footer />
+
+      {selectedLeave && (
+        <LeaveDetailsDialog
+          isOpen={isDialogOpen}
+          onClose={() => setIsDialogOpen(false)}
+          leaveData={selectedLeave}
+        />
+      )}
     </div>
   );
 };
