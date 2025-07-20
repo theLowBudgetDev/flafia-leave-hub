@@ -57,13 +57,21 @@ export const ProfileDropdown = () => {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-          <Link to={user.role === "admin" ? "/admin/settings" : "/profile"} className="flex items-center">
+          <Link 
+            to={user.role === "admin" ? "/admin/settings" : "/profile"} 
+            className="flex items-center"
+            onClick={() => document.body.click()}
+          >
             <UserCircle className="mr-2 h-4 w-4" />
             Profile
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link to={user.role === "admin" ? "/admin/settings" : "/settings"} className="flex items-center">
+          <Link 
+            to={user.role === "admin" ? "/admin/settings" : "/settings"} 
+            className="flex items-center"
+            onClick={() => document.body.click()}
+          >
             <Settings className="mr-2 h-4 w-4" />
             Settings
           </Link>

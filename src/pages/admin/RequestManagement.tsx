@@ -4,128 +4,286 @@ import { Footer } from "@/components/Footer";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from "@/components/ui/table";
+import { 
+  Pagination, 
+  PaginationContent, 
+  PaginationItem, 
+  PaginationLink, 
+  PaginationNext, 
+  PaginationPrevious 
+} from "@/components/ui/pagination";
+import { 
+  Search, 
+  Filter, 
+  Download, 
+  Eye, 
+  CheckCircle, 
+  XCircle,
+  Loader2
+} from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { LeaveDetailsDialog } from "@/components/LeaveDetailsDialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, Filter, Download, FileText, CheckCircle, XCircle, Eye, Calendar, Clock } from "lucide-react";
+import { Label } from "@/components/ui/label";
+
+interface LeaveRequest {
+  id: number;
+  staffName: string;
+  department: string;
+  type: string;
+  startDate: string;
+  endDate: string;
+  days: number;
+  status: string;
+  appliedDate: string;
+  approvedBy: string | null;
+  reason?: string;
+  priority?: string;
+}
 
 const RequestManagement = () => {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filterStatus, setFilterStatus] = useState("all");
-  const [filterType, setFilterType] = useState("all");
-  const [selectedRequest, setSelectedRequest] = useState<any>(null);
-  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
-  const [isApprovalDialogOpen, setIsApprovalDialogOpen] = useState(false);
-  const [approvalAction, setApprovalAction] = useState<"approve" | "reject">("approve");
+  const { toast } = useToast();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [selectedRequest, setSelectedRequest] = useState<LeaveRequest | null>(null);
+  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
+  const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [processingRequestId, setProcessingRequestId] = useState<number | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  
+  const itemsPerPage = 5;
 
-  const requests = [
+  // Mock leave requests data
+  const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([
     {
       id: 1,
-      staff: "Dr. Sarah Johnson",
+      staffName: "Dr. Sarah Johnson",
       department: "Computer Science",
       type: "Annual Leave",
-      startDate: "2025-01-15",
-      endDate: "2025-01-22",
-      days: 6,
-      reason: "Family vacation",
-      status: "Pending",
-      submittedDate: "2025-01-08",
-      priority: "Normal",
-      coveringStaff: "Dr. Michael Brown"
+      startDate: "2024-12-23",
+      endDate: "2024-12-30",
+      days: 7,
+      status: "Approved",
+      appliedDate: "2024-11-15",
+      approvedBy: "Admin User",
+      reason: "Family vacation planned months in advance."
     },
     {
       id: 2,
-      staff: "Prof. Michael Adams",
+      staffName: "Prof. Michael Adams",
       department: "Mathematics",
       type: "Sick Leave",
-      startDate: "2025-01-12",
-      endDate: "2025-01-14",
-      days: 3,
-      reason: "Medical treatment",
+      startDate: "2024-11-15",
+      endDate: "2024-11-15",
+      days: 1,
       status: "Pending",
-      submittedDate: "2025-01-11",
-      priority: "Urgent",
-      coveringStaff: "Dr. Lisa Chen"
+      appliedDate: "2024-11-10",
+      approvedBy: null,
+      reason: "Medical appointment",
+      priority: "Urgent"
     },
     {
       id: 3,
-      staff: "Dr. Fatima Ali",
+      staffName: "Dr. Fatima Ali",
       department: "Physics",
       type: "Conference",
-      startDate: "2025-01-20",
-      endDate: "2025-01-25",
-      days: 4,
-      reason: "International Physics Conference",
-      status: "Approved",
-      submittedDate: "2025-01-05",
-      priority: "Normal",
-      coveringStaff: "Prof. Ahmed Hassan"
+      startDate: "2024-10-20",
+      endDate: "2024-10-25",
+      days: 5,
+      status: "Pending",
+      appliedDate: "2024-10-15",
+      approvedBy: null,
+      reason: "Attending the International Physics Conference to present research."
     },
     {
       id: 4,
-      staff: "Dr. James Wilson",
+      staffName: "Dr. James Wilson",
       department: "Chemistry",
       type: "Personal Leave",
-      startDate: "2025-01-18",
-      endDate: "2025-01-18",
+      startDate: "2024-10-18",
+      endDate: "2024-10-18",
       days: 1,
-      reason: "Personal matters",
       status: "Rejected",
-      submittedDate: "2025-01-10",
-      priority: "Normal",
-      coveringStaff: "Dr. Mary Brown"
+      appliedDate: "2024-10-10",
+      approvedBy: null,
+      reason: "Family emergency",
+      rejectedReason: "Insufficient staffing during critical department evaluation period."
+    },
+    {
+      id: 5,
+      staffName: "Prof. Lisa Chen",
+      department: "Biology",
+      type: "Research Leave",
+      startDate: "2024-09-15",
+      endDate: "2024-09-30",
+      days: 15,
+      status: "Approved",
+      appliedDate: "2024-08-20",
+      approvedBy: "Admin User",
+      reason: "Field research in Amazon rainforest."
+    },
+    {
+      id: 6,
+      staffName: "Dr. Robert Brown",
+      department: "Economics",
+      type: "Annual Leave",
+      startDate: "2024-08-10",
+      endDate: "2024-08-20",
+      days: 10,
+      status: "Approved",
+      appliedDate: "2024-07-15",
+      approvedBy: "Admin User",
+      reason: "Family vacation."
+    },
+    {
+      id: 7,
+      staffName: "Dr. Emily White",
+      department: "Psychology",
+      type: "Sick Leave",
+      startDate: "2024-07-05",
+      endDate: "2024-07-07",
+      days: 2,
+      status: "Approved",
+      appliedDate: "2024-07-04",
+      approvedBy: "Admin User",
+      reason: "Recovering from flu."
     }
-  ];
+  ]);
 
-  const leaveTypes = ["Annual Leave", "Sick Leave", "Personal Leave", "Conference", "Study Leave", "Maternity Leave"];
-  const statuses = ["Pending", "Approved", "Rejected"];
+  // Filter leave requests based on search query and status filter
+  const filteredRequests = leaveRequests.filter(request => {
+    // Filter by status
+    if (statusFilter !== "all" && request.status.toLowerCase() !== statusFilter.toLowerCase()) {
+      return false;
+    }
+    
+    // Filter by search query
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      return (
+        request.staffName.toLowerCase().includes(query) ||
+        request.department.toLowerCase().includes(query) ||
+        request.type.toLowerCase().includes(query)
+      );
+    }
+    
+    return true;
+  });
 
-  const filteredRequests = requests.filter(request => 
-    request.staff.toLowerCase().includes(searchTerm.toLowerCase()) &&
-    (filterStatus === "all" || request.status === filterStatus) &&
-    (filterType === "all" || request.type === filterType)
-  );
-
-  const handleViewRequest = (request: any) => {
-    setSelectedRequest(request);
-    setIsViewDialogOpen(true);
-  };
-
-  const handleApprovalAction = (request: any, action: "approve" | "reject") => {
-    setSelectedRequest(request);
-    setApprovalAction(action);
-    setIsApprovalDialogOpen(true);
-  };
-
-  const processApproval = () => {
-    // Process approval/rejection logic here
-    console.log(`${approvalAction} request:`, selectedRequest?.id);
-    setIsApprovalDialogOpen(false);
-  };
+  // Pagination
+  const totalPages = Math.ceil(filteredRequests.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedRequests = filteredRequests.slice(startIndex, startIndex + itemsPerPage);
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case 'approved':
-        return 'bg-success/10 text-success';
+        return 'text-success bg-success/10';
       case 'pending':
-        return 'bg-warning/10 text-warning';
+        return 'text-warning bg-warning/10';
       case 'rejected':
-        return 'bg-destructive/10 text-destructive';
+        return 'text-destructive bg-destructive/10';
       default:
-        return 'bg-muted text-muted-foreground';
+        return 'text-muted-foreground bg-muted';
     }
   };
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority.toLowerCase()) {
-      case 'urgent':
-        return 'bg-destructive/10 text-destructive';
-      case 'high':
-        return 'bg-warning/10 text-warning';
-      default:
-        return 'bg-muted/50 text-muted-foreground';
-    }
+  const formatDate = (dateString: string) => {
+    const options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'short', day: 'numeric' };
+    return new Date(dateString).toLocaleDateString(undefined, options);
+  };
+
+  const handleViewDetails = (request: LeaveRequest) => {
+    setSelectedRequest(request);
+    setIsDetailsDialogOpen(true);
+  };
+
+  const openRejectDialog = (request: LeaveRequest) => {
+    setSelectedRequest(request);
+    setIsRejectDialogOpen(true);
+  };
+
+  const handleApproveRequest = async (requestId: number) => {
+    setProcessingRequestId(requestId);
+    
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Update request status
+    setLeaveRequests(prev => prev.map(req => 
+      req.id === requestId 
+        ? { ...req, status: "Approved", approvedBy: "Admin User" } 
+        : req
+    ));
+    
+    toast({
+      title: "Request Approved",
+      description: "The leave request has been approved successfully.",
+    });
+    
+    setProcessingRequestId(null);
+    setIsDetailsDialogOpen(false);
+  };
+
+  const handleRejectRequest = async () => {
+    if (!selectedRequest) return;
+    
+    setProcessingRequestId(selectedRequest.id);
+    
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Update request status
+    setLeaveRequests(prev => prev.map(req => 
+      req.id === selectedRequest.id 
+        ? { ...req, status: "Rejected", rejectedReason: rejectionReason } 
+        : req
+    ));
+    
+    toast({
+      title: "Request Rejected",
+      description: "The leave request has been rejected.",
+      variant: "destructive",
+    });
+    
+    setProcessingRequestId(null);
+    setIsRejectDialogOpen(false);
+    setRejectionReason("");
+  };
+
+  const handleExport = () => {
+    setIsExporting(true);
+    
+    // Simulate export process
+    setTimeout(() => {
+      setIsExporting(false);
+      
+      toast({
+        title: "Export Successful",
+        description: "Leave requests data has been exported to Excel.",
+      });
+      
+      // In a real app, this would trigger a file download
+      // window.location.href = '/api/export/leave-requests';
+    }, 1500);
   };
 
   return (
@@ -134,248 +292,255 @@ const RequestManagement = () => {
       
       <main className="container mx-auto px-6 py-8">
         <div className="mb-8">
-          <div className="flex items-center gap-3 mb-4">
-            <FileText className="h-8 w-8 text-primary" />
-            <div>
-              <h1 className="text-3xl font-bold text-foreground">Request Management</h1>
-              <p className="text-muted-foreground">Review and manage all leave requests</p>
-            </div>
-          </div>
+          <h1 className="text-3xl font-bold text-foreground mb-2">Leave Request Management</h1>
+          <p className="text-muted-foreground">Review and manage all leave requests</p>
         </div>
 
         <Card className="p-6">
-          {/* Controls */}
-          <div className="flex flex-col lg:flex-row gap-4 mb-6">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by staff name..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
+          <div className="flex flex-col md:flex-row justify-between gap-4 mb-6">
+            <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+              <div className="relative w-full md:w-64">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search staff or department..."
+                  className="pl-10"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-muted-foreground" />
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder="Filter by status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="approved">Approved</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="rejected">Rejected</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-full lg:w-40">
-                <Filter className="h-4 w-4 mr-2" />
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                {statuses.map(status => (
-                  <SelectItem key={status} value={status}>{status}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={filterType} onValueChange={setFilterType}>
-              <SelectTrigger className="w-full lg:w-40">
-                <SelectValue placeholder="Type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                {leaveTypes.map(type => (
-                  <SelectItem key={type} value={type}>{type}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Button variant="outline">
-              <Download className="h-4 w-4 mr-2" />
-              Export
+            <Button 
+              variant="outline" 
+              onClick={handleExport}
+              disabled={isExporting || filteredRequests.length === 0}
+            >
+              {isExporting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Exporting...
+                </>
+              ) : (
+                <>
+                  <Download className="h-4 w-4 mr-2" />
+                  Export to Excel
+                </>
+              )}
             </Button>
           </div>
-
-          {/* Requests List */}
-          <div className="space-y-4">
-            {filteredRequests.map((request) => (
-              <div key={request.id} className="border border-border rounded-lg p-4 hover:bg-muted/50 transition-colors">
-                <div className="flex flex-col lg:flex-row lg:items-start gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-3">
-                      <h3 className="font-medium text-foreground">{request.staff}</h3>
-                      <Badge className={getStatusColor(request.status)}>{request.status}</Badge>
-                      <Badge className={getPriorityColor(request.priority)}>{request.priority}</Badge>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
-                      <div>
-                        <span className="font-medium text-foreground">Department:</span>
-                        <p className="text-muted-foreground">{request.department}</p>
-                      </div>
-                      <div>
-                        <span className="font-medium text-foreground">Leave Type:</span>
-                        <p className="text-muted-foreground">{request.type}</p>
-                      </div>
-                      <div>
-                        <span className="font-medium text-foreground">Duration:</span>
-                        <p className="text-muted-foreground">{request.days} day{request.days > 1 ? 's' : ''}</p>
-                      </div>
-                      <div>
-                        <span className="font-medium text-foreground">Dates:</span>
-                        <p className="text-muted-foreground">{request.startDate} to {request.endDate}</p>
-                      </div>
-                      <div>
-                        <span className="font-medium text-foreground">Covering Staff:</span>
-                        <p className="text-muted-foreground">{request.coveringStaff}</p>
-                      </div>
-                      <div>
-                        <span className="font-medium text-foreground">Submitted:</span>
-                        <p className="text-muted-foreground">{request.submittedDate}</p>
-                      </div>
-                    </div>
-                    
-                    <div className="mt-3">
-                      <span className="font-medium text-foreground">Reason:</span>
-                      <p className="text-muted-foreground text-sm">{request.reason}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex flex-col gap-2 min-w-[120px]">
-                    <Button variant="ghost" size="sm" onClick={() => handleViewRequest(request)}>
-                      <Eye className="h-4 w-4 mr-1" />
-                      View
-                    </Button>
-                    
-                    {request.status === "Pending" && (
-                      <>
-                        <Button size="sm" onClick={() => handleApprovalAction(request, "approve")}>
-                          <CheckCircle className="h-4 w-4 mr-1" />
-                          Approve
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={() => handleApprovalAction(request, "reject")}>
-                          <XCircle className="h-4 w-4 mr-1" />
-                          Reject
-                        </Button>
-                      </>
-                    )}
-                  </div>
+          
+          {filteredRequests.length > 0 ? (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Staff</TableHead>
+                    <TableHead>Department</TableHead>
+                    <TableHead>Leave Type</TableHead>
+                    <TableHead>Duration</TableHead>
+                    <TableHead>Dates</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Applied On</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paginatedRequests.map((request) => (
+                    <TableRow key={request.id}>
+                      <TableCell className="font-medium">{request.staffName}</TableCell>
+                      <TableCell>{request.department}</TableCell>
+                      <TableCell>{request.type}</TableCell>
+                      <TableCell>{request.days} day{request.days > 1 ? 's' : ''}</TableCell>
+                      <TableCell>
+                        {formatDate(request.startDate)}
+                        {request.startDate !== request.endDate && ` - ${formatDate(request.endDate)}`}
+                      </TableCell>
+                      <TableCell>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(request.status)}`}>
+                          {request.status}
+                        </span>
+                      </TableCell>
+                      <TableCell>{formatDate(request.appliedDate)}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => handleViewDetails(request)}
+                            disabled={processingRequestId === request.id}
+                          >
+                            <Eye className="h-4 w-4" />
+                            <span className="sr-only">View</span>
+                          </Button>
+                          
+                          {request.status === "Pending" && (
+                            <>
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => handleApproveRequest(request.id)}
+                                disabled={processingRequestId === request.id}
+                                className="text-success hover:text-success hover:bg-success/10"
+                              >
+                                {processingRequestId === request.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <CheckCircle className="h-4 w-4" />
+                                )}
+                                <span className="sr-only">Approve</span>
+                              </Button>
+                              
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => openRejectDialog(request)}
+                                disabled={processingRequestId === request.id}
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                              >
+                                <XCircle className="h-4 w-4" />
+                                <span className="sr-only">Reject</span>
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              
+              {totalPages > 1 && (
+                <div className="mt-6">
+                  <Pagination>
+                    <PaginationContent>
+                      <PaginationItem>
+                        <PaginationPrevious 
+                          onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                          className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                        />
+                      </PaginationItem>
+                      
+                      {Array.from({ length: totalPages }).map((_, index) => (
+                        <PaginationItem key={index}>
+                          <PaginationLink
+                            onClick={() => setCurrentPage(index + 1)}
+                            isActive={currentPage === index + 1}
+                          >
+                            {index + 1}
+                          </PaginationLink>
+                        </PaginationItem>
+                      ))}
+                      
+                      <PaginationItem>
+                        <PaginationNext 
+                          onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                          className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
                 </div>
-              </div>
-            ))}
-          </div>
-
-          {filteredRequests.length === 0 && (
+              )}
+            </div>
+          ) : (
             <div className="text-center py-12">
-              <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-foreground mb-2">No requests found</h3>
-              <p className="text-muted-foreground">Try adjusting your search criteria</p>
+              <p className="text-muted-foreground mb-2">No leave requests found</p>
+              <p className="text-sm text-muted-foreground">
+                {searchQuery || statusFilter !== "all" 
+                  ? "Try adjusting your filters to see more results" 
+                  : "There are no leave requests in the system yet"}
+              </p>
             </div>
           )}
         </Card>
-
-        {/* View Request Dialog */}
-        <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Leave Request Details</DialogTitle>
-              <DialogDescription>Complete information about the leave request</DialogDescription>
-            </DialogHeader>
-            {selectedRequest && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <span className="font-medium text-foreground">Staff Member:</span>
-                    <p className="text-muted-foreground">{selectedRequest.staff}</p>
-                  </div>
-                  <div>
-                    <span className="font-medium text-foreground">Department:</span>
-                    <p className="text-muted-foreground">{selectedRequest.department}</p>
-                  </div>
-                  <div>
-                    <span className="font-medium text-foreground">Leave Type:</span>
-                    <p className="text-muted-foreground">{selectedRequest.type}</p>
-                  </div>
-                  <div>
-                    <span className="font-medium text-foreground">Duration:</span>
-                    <p className="text-muted-foreground">{selectedRequest.days} day{selectedRequest.days > 1 ? 's' : ''}</p>
-                  </div>
-                  <div>
-                    <span className="font-medium text-foreground">Start Date:</span>
-                    <p className="text-muted-foreground">{selectedRequest.startDate}</p>
-                  </div>
-                  <div>
-                    <span className="font-medium text-foreground">End Date:</span>
-                    <p className="text-muted-foreground">{selectedRequest.endDate}</p>
-                  </div>
-                  <div>
-                    <span className="font-medium text-foreground">Status:</span>
-                    <Badge className={getStatusColor(selectedRequest.status)}>{selectedRequest.status}</Badge>
-                  </div>
-                  <div>
-                    <span className="font-medium text-foreground">Priority:</span>
-                    <Badge className={getPriorityColor(selectedRequest.priority)}>{selectedRequest.priority}</Badge>
-                  </div>
-                </div>
-                
-                <div>
-                  <span className="font-medium text-foreground">Covering Staff:</span>
-                  <p className="text-muted-foreground">{selectedRequest.coveringStaff}</p>
-                </div>
-                
-                <div>
-                  <span className="font-medium text-foreground">Reason:</span>
-                  <p className="text-muted-foreground">{selectedRequest.reason}</p>
-                </div>
-                
-                <div>
-                  <span className="font-medium text-foreground">Submitted Date:</span>
-                  <p className="text-muted-foreground">{selectedRequest.submittedDate}</p>
-                </div>
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
-
-        {/* Approval Dialog */}
-        <Dialog open={isApprovalDialogOpen} onOpenChange={setIsApprovalDialogOpen}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>
-                {approvalAction === "approve" ? "Approve" : "Reject"} Leave Request
-              </DialogTitle>
-              <DialogDescription>
-                {approvalAction === "approve" 
-                  ? "Confirm approval of this leave request"
-                  : "Provide a reason for rejecting this leave request"
-                }
-              </DialogDescription>
-            </DialogHeader>
-            {selectedRequest && (
-              <div className="space-y-4">
-                <div className="p-4 bg-muted/50 rounded-lg">
-                  <p className="font-medium text-foreground">{selectedRequest.staff}</p>
-                  <p className="text-sm text-muted-foreground">{selectedRequest.type} - {selectedRequest.days} day{selectedRequest.days > 1 ? 's' : ''}</p>
-                  <p className="text-sm text-muted-foreground">{selectedRequest.startDate} to {selectedRequest.endDate}</p>
-                </div>
-                
-                {approvalAction === "reject" && (
-                  <div>
-                    <label className="text-sm font-medium text-foreground">Reason for rejection:</label>
-                    <Textarea placeholder="Please provide a reason for rejecting this request..." className="mt-1" />
-                  </div>
-                )}
-                
-                <div className="flex gap-2">
-                  <Button 
-                    onClick={processApproval} 
-                    className="flex-1"
-                    variant={approvalAction === "approve" ? "default" : "destructive"}
-                  >
-                    {approvalAction === "approve" ? "Approve Request" : "Reject Request"}
-                  </Button>
-                  <Button variant="outline" onClick={() => setIsApprovalDialogOpen(false)} className="flex-1">
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
       </main>
 
       <Footer />
+      
+      {/* Leave Details Dialog */}
+      {selectedRequest && (
+        <LeaveDetailsDialog
+          isOpen={isDetailsDialogOpen}
+          onClose={() => setIsDetailsDialogOpen(false)}
+          leaveData={selectedRequest}
+        />
+      )}
+      
+      {/* Reject Dialog */}
+      {selectedRequest && (
+        <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Reject Leave Request</DialogTitle>
+              <DialogDescription>
+                Please provide a reason for rejecting this leave request
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm font-medium">{selectedRequest.staffName}'s {selectedRequest.type}</p>
+                <p className="text-sm text-muted-foreground">
+                  {formatDate(selectedRequest.startDate)}
+                  {selectedRequest.startDate !== selectedRequest.endDate && ` - ${formatDate(selectedRequest.endDate)}`}
+                  {` (${selectedRequest.days} day${selectedRequest.days > 1 ? 's' : ''})`}
+                </p>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="rejection-reason">Reason for Rejection</Label>
+                <Textarea
+                  id="rejection-reason"
+                  placeholder="Please provide a reason for rejecting this request..."
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  className="min-h-[100px]"
+                  disabled={processingRequestId === selectedRequest.id}
+                />
+              </div>
+            </div>
+            
+            <DialogFooter>
+              <Button 
+                variant="outline" 
+                onClick={() => setIsRejectDialogOpen(false)}
+                disabled={processingRequestId === selectedRequest.id}
+              >
+                Cancel
+              </Button>
+              <Button 
+                variant="destructive" 
+                onClick={handleRejectRequest}
+                disabled={!rejectionReason.trim() || processingRequestId === selectedRequest.id}
+              >
+                {processingRequestId === selectedRequest.id ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  "Confirm Rejection"
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 };

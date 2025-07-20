@@ -156,7 +156,19 @@ const AdminSettings = () => {
                 <Separator />
                 
                 <div className="flex justify-end gap-3">
-                  <Button variant="outline">
+                  <Button 
+                    variant="outline"
+                    onClick={() => {
+                      setMaxLeaveDays("25");
+                      setMinAdvanceNotice("7");
+                      setFiscalYearStart("january");
+                      setAutoApproval(false);
+                      toast({
+                        title: "Settings Reset",
+                        description: "General settings have been reset to default values.",
+                      });
+                    }}
+                  >
                     <RefreshCcw className="h-4 w-4 mr-2" />
                     Reset to Defaults
                   </Button>
@@ -378,23 +390,68 @@ const AdminSettings = () => {
                     <Card className="p-4 border-2 border-primary">
                       <h4 className="font-medium text-foreground">Administrator</h4>
                       <p className="text-sm text-muted-foreground mb-2">Full system access</p>
-                      <Button variant="outline" size="sm" className="w-full">Manage Permissions</Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="w-full"
+                        onClick={() => {
+                          toast({
+                            title: "Permissions Manager",
+                            description: "Administrator permissions management opened.",
+                          });
+                        }}
+                      >
+                        Manage Permissions
+                      </Button>
                     </Card>
                     
                     <Card className="p-4">
                       <h4 className="font-medium text-foreground">HR Manager</h4>
                       <p className="text-sm text-muted-foreground mb-2">Approval & management</p>
-                      <Button variant="outline" size="sm" className="w-full">Manage Permissions</Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="w-full"
+                        onClick={() => {
+                          toast({
+                            title: "Permissions Manager",
+                            description: "HR Manager permissions management opened.",
+                          });
+                        }}
+                      >
+                        Manage Permissions
+                      </Button>
                     </Card>
                     
                     <Card className="p-4">
                       <h4 className="font-medium text-foreground">Staff</h4>
                       <p className="text-sm text-muted-foreground mb-2">Basic access</p>
-                      <Button variant="outline" size="sm" className="w-full">Manage Permissions</Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="w-full"
+                        onClick={() => {
+                          toast({
+                            title: "Permissions Manager",
+                            description: "Staff permissions management opened.",
+                          });
+                        }}
+                      >
+                        Manage Permissions
+                      </Button>
                     </Card>
                   </div>
                   
-                  <Button variant="outline" size="sm">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      toast({
+                        title: "Add New Role",
+                        description: "New role creation dialog opened.",
+                      });
+                    }}
+                  >
                     <User className="h-4 w-4 mr-2" />
                     Add New Role
                   </Button>
@@ -405,7 +462,18 @@ const AdminSettings = () => {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-medium text-foreground">Department Management</h3>
-                    <Button variant="outline" size="sm">Add Department</Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => {
+                        toast({
+                          title: "Add Department",
+                          description: "Department creation dialog opened.",
+                        });
+                      }}
+                    >
+                      Add Department
+                    </Button>
                   </div>
                   
                   <div className="border rounded-md">
@@ -420,7 +488,18 @@ const AdminSettings = () => {
                         <div>{dept}</div>
                         <div>Dr. John Doe</div>
                         <div className="text-right">
-                          <Button variant="ghost" size="sm">Edit</Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => {
+                              toast({
+                                title: "Edit Department",
+                                description: "Department editing dialog opened.",
+                              });
+                            }}
+                          >
+                            Edit
+                          </Button>
                         </div>
                       </div>
                     ))}

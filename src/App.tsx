@@ -23,6 +23,9 @@ import Contact from "./pages/Contact";
 import AdminCalendar from "./pages/admin/AdminCalendar";
 import AdminReports from "./pages/admin/AdminReports";
 import AdminSettings from "./pages/admin/AdminSettings";
+import Notifications from "./pages/Notifications";
+import Profile from "./pages/Profile";
+import Settings from "./pages/Settings";
 
 const queryClient = new QueryClient();
 
@@ -61,6 +64,17 @@ const App = () => (
               <Route path="/calendar" element={
                 <ProtectedRoute requiredRole="staff">
                   <Calendar />
+                </ProtectedRoute>
+              } />
+              <Route path="/notifications" element={<Notifications />} />
+              <Route path="/settings" element={
+                <ProtectedRoute>
+                  <Settings />
+                </ProtectedRoute>
+              } />
+              <Route path="/profile" element={
+                <ProtectedRoute>
+                  <Profile />
                 </ProtectedRoute>
               } />
               

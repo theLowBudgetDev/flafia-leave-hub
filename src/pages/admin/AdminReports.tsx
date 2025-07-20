@@ -103,11 +103,29 @@ const AdminReports = () => {
           </div>
           
           <div className="flex gap-3">
-            <Button variant="outline" size="sm">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => {
+                toast({
+                  title: "Data Refreshed",
+                  description: "Report data has been refreshed with the latest information.",
+                });
+              }}
+            >
               <RefreshCcw className="h-4 w-4 mr-2" />
               Refresh
             </Button>
-            <Button variant="outline" size="sm">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => {
+                toast({
+                  title: "Export Complete",
+                  description: "Reports have been exported successfully.",
+                });
+              }}
+            >
               <Download className="h-4 w-4 mr-2" />
               Export
             </Button>

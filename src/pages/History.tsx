@@ -1,88 +1,125 @@
-
+import { useState, useEffect } from "react";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Filter, Eye, Download } from "lucide-react";
-import { useState } from "react";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from "@/components/ui/table";
+import { 
+  Pagination, 
+  PaginationContent, 
+  PaginationItem, 
+  PaginationLink, 
+  PaginationNext, 
+  PaginationPrevious 
+} from "@/components/ui/pagination";
+import { Calendar, Search, Filter, Eye, Loader2 } from "lucide-react";
+import { format, parseISO } from "date-fns";
+import { useAuth } from "@/contexts/AuthContext";
+import { api, LeaveRequest } from "@/services/api";
 import { LeaveDetailsDialog } from "@/components/LeaveDetailsDialog";
 
 const History = () => {
-  const [searchTerm, setSearchTerm] = useState("");
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
+  const [filteredRequests, setFilteredRequests] = useState<LeaveRequest[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [selectedLeave, setSelectedLeave] = useState<any>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [selectedRequest, setSelectedRequest] = useState<LeaveRequest | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  
+  const itemsPerPage = 5;
 
-  const leaveHistory = [
-    {
-      id: 1,
-      type: "Annual Leave",
-      startDate: "2024-12-23",
-      endDate: "2024-12-30",
-      days: 7,
-      status: "Approved",
-      appliedDate: "2024-12-01",
-      approvedBy: "Dr. Sarah Johnson"
-    },
-    {
-      id: 2,
-      type: "Sick Leave",
-      startDate: "2024-11-15",
-      endDate: "2024-11-15",
-      days: 1,
-      status: "Pending",
-      appliedDate: "2024-11-14",
-      approvedBy: null
-    },
-    {
-      id: 3,
-      type: "Personal Leave",
-      startDate: "2024-10-20",
-      endDate: "2024-10-21",
-      days: 2,
-      status: "Approved",
-      appliedDate: "2024-10-15",
-      approvedBy: "Prof. Michael Davis"
-    },
-    {
-      id: 4,
-      type: "Study Leave",
-      startDate: "2024-09-05",
-      endDate: "2024-09-06",
-      days: 2,
-      status: "Rejected",
-      appliedDate: "2024-08-25",
-      approvedBy: "Dr. Sarah Johnson"
+  useEffect(() => {
+    const fetchLeaveRequests = async () => {
+      setLoading(true);
+      try {
+        if (user?.id) {
+          const requests = await api.getLeaveRequests(user.id);
+          setLeaveRequests(requests);
+          setFilteredRequests(requests);
+        }
+      } catch (error) {
+        console.error("Error fetching leave requests:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLeaveRequests();
+  }, [user]);
+
+  useEffect(() => {
+    // Apply filters
+    let filtered = [...leaveRequests];
+    
+    // Filter by status
+    if (statusFilter !== "all") {
+      filtered = filtered.filter(request => 
+        request.status.toLowerCase() === statusFilter.toLowerCase()
+      );
     }
-  ];
+    
+    // Filter by search query
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(request => 
+        request.type.toLowerCase().includes(query) ||
+        request.startDate.includes(query) ||
+        request.endDate.includes(query)
+      );
+    }
+    
+    setFilteredRequests(filtered);
+    setCurrentPage(1); // Reset to first page when filters change
+  }, [statusFilter, searchQuery, leaveRequests]);
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case 'approved':
-        return 'text-success bg-success/10 border-success/20';
+        return 'text-success bg-success/10';
       case 'pending':
-        return 'text-warning bg-warning/10 border-warning/20';
+        return 'text-warning bg-warning/10';
       case 'rejected':
-        return 'text-destructive bg-destructive/10 border-destructive/20';
+        return 'text-destructive bg-destructive/10';
       default:
-        return 'text-muted-foreground bg-muted border-border';
+        return 'text-muted-foreground bg-muted';
     }
   };
 
-  const filteredHistory = leaveHistory.filter(item => {
-    const matchesSearch = item.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         item.status.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === "all" || item.status.toLowerCase() === statusFilter;
-    
-    return matchesSearch && matchesStatus;
-  });
+  const formatDate = (dateString: string) => {
+    try {
+      return format(parseISO(dateString), "MMM d, yyyy");
+    } catch (error) {
+      return dateString;
+    }
+  };
 
-  const handleViewDetails = (leave: any) => {
-    setSelectedLeave(leave);
+  const handleViewDetails = (request: LeaveRequest) => {
+    setSelectedRequest(request);
     setIsDialogOpen(true);
   };
+
+  // Pagination
+  const totalPages = Math.ceil(filteredRequests.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedRequests = filteredRequests.slice(startIndex, startIndex + itemsPerPage);
 
   return (
     <div className="min-h-screen bg-background">
@@ -91,100 +128,147 @@ const History = () => {
       <main className="container mx-auto px-6 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-2">Leave History</h1>
-          <p className="text-muted-foreground">View and manage all your leave requests.</p>
+          <p className="text-muted-foreground">View and track all your leave requests</p>
         </div>
 
-        <Card className="p-6 mb-6">
-          {/* Improved tablet layout - single row on tablet and desktop */}
-          <div className="flex flex-col sm:flex-row gap-4 mb-6">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by leave type or status..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-48">
-                <Filter className="h-4 w-4 mr-2" />
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="approved">Approved</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="rejected">Rejected</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Button variant="outline" className="w-full sm:w-auto">
-              <Download className="h-4 w-4 mr-2" />
-              Export
-            </Button>
-          </div>
-
-          <div className="space-y-4">
-            {filteredHistory.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-muted-foreground">No leave requests found matching your criteria.</p>
+        <Card className="p-6">
+          <div className="flex flex-col md:flex-row justify-between gap-4 mb-6">
+            <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+              <div className="relative w-full md:w-64">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search leave requests..."
+                  className="pl-10"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
               </div>
-            ) : (
-              filteredHistory.map((item) => (
-                <div key={item.id} className="border border-border rounded-lg p-4 hover:bg-muted/50 transition-colors">
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="font-semibold text-foreground">{item.type}</h3>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(item.status)}`}>
-                          {item.status}
-                        </span>
-                      </div>
-                      
-                      <div className="grid md:grid-cols-3 gap-2 text-sm text-muted-foreground">
-                        <div>
-                          <span className="font-medium">Duration:</span> {item.startDate} to {item.endDate}
-                        </div>
-                        <div>
-                          <span className="font-medium">Days:</span> {item.days} day{item.days > 1 ? 's' : ''}
-                        </div>
-                        <div>
-                          <span className="font-medium">Applied:</span> {item.appliedDate}
-                        </div>
-                      </div>
-                      
-                      {item.approvedBy && (
-                        <div className="text-sm text-muted-foreground mt-1">
-                          <span className="font-medium">Approved by:</span> {item.approvedBy}
-                        </div>
-                      )}
-                    </div>
-                    
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => handleViewDetails(item)}
-                    >
-                      <Eye className="h-4 w-4 mr-2" />
-                      View Details
-                    </Button>
-                  </div>
-                </div>
-              ))
-            )}
+              
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-muted-foreground" />
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder="Filter by status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="approved">Approved</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="rejected">Rejected</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
           </div>
+          
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 text-primary animate-spin mb-4" />
+              <p className="text-muted-foreground">Loading your leave history...</p>
+            </div>
+          ) : (
+            <>
+              {filteredRequests.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Start Date</TableHead>
+                        <TableHead>End Date</TableHead>
+                        <TableHead>Duration</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Applied On</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {paginatedRequests.map((request) => (
+                        <TableRow key={request.id}>
+                          <TableCell className="font-medium">{request.type}</TableCell>
+                          <TableCell>{formatDate(request.startDate)}</TableCell>
+                          <TableCell>{formatDate(request.endDate)}</TableCell>
+                          <TableCell>{request.days} day{request.days > 1 ? 's' : ''}</TableCell>
+                          <TableCell>
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(request.status)}`}>
+                              {request.status}
+                            </span>
+                          </TableCell>
+                          <TableCell>{formatDate(request.appliedDate)}</TableCell>
+                          <TableCell className="text-right">
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => handleViewDetails(request)}
+                            >
+                              <Eye className="h-4 w-4 mr-1" />
+                              View
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                  
+                  {totalPages > 1 && (
+                    <div className="mt-6">
+                      <Pagination>
+                        <PaginationContent>
+                          <PaginationItem>
+                            <PaginationPrevious 
+                              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                              className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                            />
+                          </PaginationItem>
+                          
+                          {Array.from({ length: totalPages }).map((_, index) => (
+                            <PaginationItem key={index}>
+                              <PaginationLink
+                                onClick={() => setCurrentPage(index + 1)}
+                                isActive={currentPage === index + 1}
+                              >
+                                {index + 1}
+                              </PaginationLink>
+                            </PaginationItem>
+                          ))}
+                          
+                          <PaginationItem>
+                            <PaginationNext 
+                              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                              className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                            />
+                          </PaginationItem>
+                        </PaginationContent>
+                      </Pagination>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-foreground mb-2">No leave requests found</h3>
+                  <p className="text-muted-foreground mb-6">
+                    {searchQuery || statusFilter !== "all" 
+                      ? "Try adjusting your filters to see more results" 
+                      : "You haven't submitted any leave requests yet"}
+                  </p>
+                  <Button asChild>
+                    <a href="/apply">Apply for Leave</a>
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
         </Card>
       </main>
 
       <Footer />
-
-      {selectedLeave && (
+      
+      {selectedRequest && (
         <LeaveDetailsDialog
           isOpen={isDialogOpen}
           onClose={() => setIsDialogOpen(false)}
-          leaveData={selectedLeave}
+          leaveData={selectedRequest}
         />
       )}
     </div>
