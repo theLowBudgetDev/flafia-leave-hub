@@ -3,8 +3,10 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import ApplyLeave from "./pages/ApplyLeave";
@@ -16,36 +18,91 @@ import NotFound from "./pages/NotFound";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import StaffManagement from "./pages/admin/StaffManagement";
 import RequestManagement from "./pages/admin/RequestManagement";
+import ForgotPassword from "./pages/ForgotPassword";
+import Contact from "./pages/Contact";
+import AdminCalendar from "./pages/admin/AdminCalendar";
+import AdminReports from "./pages/admin/AdminReports";
+import AdminSettings from "./pages/admin/AdminSettings";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <ThemeProvider defaultTheme="system" storageKey="fulafia-theme">
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/apply" element={<ApplyLeave />} />
-            <Route path="/history" element={<History />} />
-            <Route path="/calendar" element={<Calendar />} />
-            <Route path="/about" element={<About />} />
-            <Route path="/signin" element={<SignIn />} />
-            
-            {/* Admin Routes */}
-            <Route path="/admin" element={<AdminDashboard />} />
-            <Route path="/admin/staff" element={<StaffManagement />} />
-            <Route path="/admin/requests" element={<RequestManagement />} />
-            
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </ThemeProvider>
+    <AuthProvider>
+      <ThemeProvider defaultTheme="system" storageKey="fulafia-theme">
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              {/* Public Routes */}
+              <Route path="/" element={<Index />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/signin" element={<SignIn />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/contact" element={<Contact />} />
+              
+              {/* Staff Routes */}
+              <Route path="/dashboard" element={
+                <ProtectedRoute requiredRole="staff">
+                  <Dashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/apply" element={
+                <ProtectedRoute requiredRole="staff">
+                  <ApplyLeave />
+                </ProtectedRoute>
+              } />
+              <Route path="/history" element={
+                <ProtectedRoute requiredRole="staff">
+                  <History />
+                </ProtectedRoute>
+              } />
+              <Route path="/calendar" element={
+                <ProtectedRoute requiredRole="staff">
+                  <Calendar />
+                </ProtectedRoute>
+              } />
+              
+              {/* Admin Routes */}
+              <Route path="/admin" element={
+                <ProtectedRoute requiredRole="admin">
+                  <AdminDashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/staff" element={
+                <ProtectedRoute requiredRole="admin">
+                  <StaffManagement />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/requests" element={
+                <ProtectedRoute requiredRole="admin">
+                  <RequestManagement />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/calendar" element={
+                <ProtectedRoute requiredRole="admin">
+                  <AdminCalendar />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/reports" element={
+                <ProtectedRoute requiredRole="admin">
+                  <AdminReports />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/settings" element={
+                <ProtectedRoute requiredRole="admin">
+                  <AdminSettings />
+                </ProtectedRoute>
+              } />
+              
+              {/* Catch-all route */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </ThemeProvider>
+    </AuthProvider>
   </QueryClientProvider>
 );
 

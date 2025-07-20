@@ -4,24 +4,89 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { GraduationCap, Mail, Lock, UserCog, Users } from "lucide-react";
+import { GraduationCap, Mail, Lock, UserCog, Users, Loader2 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 
 const SignIn = () => {
   const navigate = useNavigate();
+  const { login } = useAuth();
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("staff");
+  const [isLoading, setIsLoading] = useState(false);
+  
+  // Staff login form state
+  const [staffEmail, setStaffEmail] = useState("");
+  const [staffPassword, setStaffPassword] = useState("");
+  const [rememberStaff, setRememberStaff] = useState(false);
+  
+  // Admin login form state
+  const [adminEmail, setAdminEmail] = useState("");
+  const [adminPassword, setAdminPassword] = useState("");
+  const [rememberAdmin, setRememberAdmin] = useState(false);
 
-  const handleStaffLogin = (e: React.FormEvent) => {
+  const handleStaffLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Simulate staff login
-    navigate("/dashboard");
+    setIsLoading(true);
+    
+    try {
+      const success = await login(staffEmail, staffPassword, "staff");
+      
+      if (success) {
+        toast({
+          title: "Login Successful",
+          description: "Welcome back to FULafia Leave Management System.",
+        });
+        navigate("/dashboard");
+      } else {
+        toast({
+          title: "Login Failed",
+          description: "Invalid email or password. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Login Error",
+        description: "An error occurred during login. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleAdminLogin = (e: React.FormEvent) => {
+  const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Simulate admin login
-    navigate("/admin");
+    setIsLoading(true);
+    
+    try {
+      const success = await login(adminEmail, adminPassword, "admin");
+      
+      if (success) {
+        toast({
+          title: "Admin Login Successful",
+          description: "Welcome to the admin dashboard.",
+        });
+        navigate("/admin");
+      } else {
+        toast({
+          title: "Login Failed",
+          description: "Invalid admin credentials. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Login Error",
+        description: "An error occurred during login. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -66,7 +131,10 @@ const SignIn = () => {
                           type="email"
                           placeholder="staff@fulafia.edu.ng"
                           className="pl-10"
+                          value={staffEmail}
+                          onChange={(e) => setStaffEmail(e.target.value)}
                           required
+                          disabled={isLoading}
                         />
                       </div>
                     </div>
@@ -80,14 +148,23 @@ const SignIn = () => {
                           type="password"
                           placeholder="Enter your password"
                           className="pl-10"
+                          value={staffPassword}
+                          onChange={(e) => setStaffPassword(e.target.value)}
                           required
+                          disabled={isLoading}
                         />
                       </div>
                     </div>
 
                     <div className="flex items-center justify-between">
                       <label className="flex items-center space-x-2 text-sm">
-                        <input type="checkbox" className="rounded border-border" />
+                        <input 
+                          type="checkbox" 
+                          className="rounded border-border" 
+                          checked={rememberStaff}
+                          onChange={(e) => setRememberStaff(e.target.checked)}
+                          disabled={isLoading}
+                        />
                         <span>Remember me</span>
                       </label>
                       <Link to="/forgot-password" className="text-sm text-primary hover:underline">
@@ -95,8 +172,15 @@ const SignIn = () => {
                       </Link>
                     </div>
 
-                    <Button type="submit" className="w-full">
-                      Sign In as Staff
+                    <Button type="submit" className="w-full" disabled={isLoading}>
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Signing In...
+                        </>
+                      ) : (
+                        "Sign In as Staff"
+                      )}
                     </Button>
                   </form>
                 </TabsContent>
@@ -112,7 +196,10 @@ const SignIn = () => {
                           type="email"
                           placeholder="admin@fulafia.edu.ng"
                           className="pl-10"
+                          value={adminEmail}
+                          onChange={(e) => setAdminEmail(e.target.value)}
                           required
+                          disabled={isLoading}
                         />
                       </div>
                     </div>
@@ -126,14 +213,23 @@ const SignIn = () => {
                           type="password"
                           placeholder="Enter admin password"
                           className="pl-10"
+                          value={adminPassword}
+                          onChange={(e) => setAdminPassword(e.target.value)}
                           required
+                          disabled={isLoading}
                         />
                       </div>
                     </div>
 
                     <div className="flex items-center justify-between">
                       <label className="flex items-center space-x-2 text-sm">
-                        <input type="checkbox" className="rounded border-border" />
+                        <input 
+                          type="checkbox" 
+                          className="rounded border-border" 
+                          checked={rememberAdmin}
+                          onChange={(e) => setRememberAdmin(e.target.checked)}
+                          disabled={isLoading}
+                        />
                         <span>Remember me</span>
                       </label>
                       <Link to="/forgot-password" className="text-sm text-primary hover:underline">
@@ -141,8 +237,15 @@ const SignIn = () => {
                       </Link>
                     </div>
 
-                    <Button type="submit" className="w-full">
-                      Sign In as Admin
+                    <Button type="submit" className="w-full" disabled={isLoading}>
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Signing In...
+                        </>
+                      ) : (
+                        "Sign In as Admin"
+                      )}
                     </Button>
                   </form>
                 </TabsContent>
