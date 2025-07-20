@@ -58,27 +58,18 @@ export const MobileNav = () => {
 
           <Separator className="mb-6" />
           
-          {/* Theme Toggle, Notifications, and Profile */}
-          <div className="space-y-4 mb-6">
-            <div className="flex items-center justify-between px-4">
-              <span className="text-sm font-medium">Theme</span>
-              <ThemeToggle />
-            </div>
-            {isAuthenticated && (
-              <>
-                <div className="flex items-center justify-between px-4">
-                  <span className="text-sm font-medium">Notifications</span>
-                  <NotificationDropdown />
-                </div>
-                <div className="flex items-center justify-between px-4">
-                  <span className="text-sm font-medium">Profile</span>
-                  <ProfileDropdown />
-                </div>
-              </>
-            )}
-          </div>
-
           <div className="mt-auto">
+            {/* Icons at footer - above sign in button */}
+            <div className="flex items-center justify-center gap-4 mb-4 px-4">
+              <ThemeToggle />
+              {isAuthenticated && (
+                <>
+                  <NotificationDropdown />
+                  <ProfileDropdown />
+                </>
+              )}
+            </div>
+            
             {!isAuthenticated && (
               <Button className="w-full" asChild>
                 <Link to="/signin" onClick={() => setOpen(false)}>
