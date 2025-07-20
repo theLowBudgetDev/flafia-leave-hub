@@ -39,9 +39,12 @@ export const Header = () => {
             <Link to="/calendar" className="text-foreground hover:text-primary transition-colors">
               Calendar
             </Link>
+            <Link to="/about" className="text-foreground hover:text-primary transition-colors">
+              About
+            </Link>
           </nav>
 
-          {/* Desktop Controls - Hidden on tablet and mobile */}
+          {/* Desktop Controls */}
           <div className="hidden lg:flex items-center gap-3">
             <ThemeToggle />
             {isAuthenticated ? (
@@ -58,16 +61,8 @@ export const Header = () => {
             )}
           </div>
 
-          {/* Tablet and Mobile Controls */}
+          {/* Mobile/Tablet Controls */}
           <div className="flex lg:hidden items-center gap-3">
-            <ThemeToggle />
-            {!isAuthenticated && (
-              <Link to="/signin">
-                <Button variant="outline" size="sm">
-                  Sign In
-                </Button>
-              </Link>
-            )}
             <MobileNav />
           </div>
         </div>

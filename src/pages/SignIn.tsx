@@ -1,6 +1,4 @@
 
-import { Header } from "@/components/Header";
-import { Footer } from "@/components/Footer";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,10 +8,7 @@ import { Link } from "react-router-dom";
 
 const SignIn = () => {
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      
-      <main className="container mx-auto px-6 py-16 flex items-center justify-center min-h-[calc(100vh-200px)]">
+    <div className="min-h-screen bg-background flex items-center justify-center p-6">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
             <div className="flex justify-center mb-4">
@@ -86,9 +81,6 @@ const SignIn = () => {
             </CardContent>
           </Card>
         </div>
-      </main>
-
-      <Footer />
     </div>
   );
 };

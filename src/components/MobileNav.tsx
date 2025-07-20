@@ -6,6 +6,7 @@ import { Menu, GraduationCap } from "lucide-react";
 import { Link } from "react-router-dom";
 import { NotificationDropdown } from "./NotificationDropdown";
 import { ProfileDropdown } from "./ProfileDropdown";
+import { ThemeToggle } from "./ThemeToggle";
 import { Separator } from "@/components/ui/separator";
 
 export const MobileNav = () => {
@@ -19,6 +20,7 @@ export const MobileNav = () => {
     { href: "/apply", label: "Apply Leave" },
     { href: "/history", label: "My Requests" },
     { href: "/calendar", label: "Calendar" },
+    { href: "/about", label: "About" },
   ];
 
   return (
@@ -46,7 +48,7 @@ export const MobileNav = () => {
               <Link
                 key={link.href}
                 to={link.href}
-                className="text-foreground hover:text-primary transition-colors py-3 px-4 rounded-md hover:bg-accent text-left"
+                className="text-foreground hover:text-white transition-colors py-3 px-4 rounded-md hover:bg-accent text-left"
                 onClick={() => setOpen(false)}
               >
                 {link.label}
@@ -54,10 +56,16 @@ export const MobileNav = () => {
             ))}
           </nav>
 
-          {isAuthenticated && (
-            <>
-              <Separator className="mb-6" />
-              <div className="space-y-4 mb-6">
+          <Separator className="mb-6" />
+          
+          {/* Theme Toggle, Notifications, and Profile */}
+          <div className="space-y-4 mb-6">
+            <div className="flex items-center justify-between px-4">
+              <span className="text-sm font-medium">Theme</span>
+              <ThemeToggle />
+            </div>
+            {isAuthenticated && (
+              <>
                 <div className="flex items-center justify-between px-4">
                   <span className="text-sm font-medium">Notifications</span>
                   <NotificationDropdown />
@@ -66,9 +74,9 @@ export const MobileNav = () => {
                   <span className="text-sm font-medium">Profile</span>
                   <ProfileDropdown />
                 </div>
-              </div>
-            </>
-          )}
+              </>
+            )}
+          </div>
 
           <div className="mt-auto">
             {!isAuthenticated && (

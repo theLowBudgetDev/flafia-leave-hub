@@ -10,6 +10,7 @@ import Dashboard from "./pages/Dashboard";
 import ApplyLeave from "./pages/ApplyLeave";
 import History from "./pages/History";
 import Calendar from "./pages/Calendar";
+import About from "./pages/About";
 import SignIn from "./pages/SignIn";
 import NotFound from "./pages/NotFound";
 
@@ -28,6 +29,7 @@ const App = () => (
             <Route path="/apply" element={<ApplyLeave />} />
             <Route path="/history" element={<History />} />
             <Route path="/calendar" element={<Calendar />} />
+            <Route path="/about" element={<About />} />
             <Route path="/signin" element={<SignIn />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

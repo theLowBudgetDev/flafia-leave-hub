@@ -52,7 +52,7 @@ export const Footer = () => {
 
         <div className="border-t border-border mt-8 pt-8 text-center">
           <p className="text-muted-foreground text-sm">
-            © 2024 Federal University, Lafia. All rights reserved. | 
+            © 2025 Federal University, Lafia. All rights reserved. | 
             <span className="text-primary"> Leave Management System</span>
           </p>
         </div>
