@@ -14,16 +14,124 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      leave_requests: {
+        Row: {
+          applied_date: string
+          approved_by: string | null
+          approved_date: string | null
+          created_at: string
+          days: number
+          end_date: string
+          id: string
+          reason: string
+          rejected_reason: string | null
+          start_date: string
+          status: Database["public"]["Enums"]["leave_status"]
+          type: Database["public"]["Enums"]["leave_type"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          applied_date?: string
+          approved_by?: string | null
+          approved_date?: string | null
+          created_at?: string
+          days: number
+          end_date: string
+          id?: string
+          reason: string
+          rejected_reason?: string | null
+          start_date: string
+          status?: Database["public"]["Enums"]["leave_status"]
+          type: Database["public"]["Enums"]["leave_type"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          applied_date?: string
+          approved_by?: string | null
+          approved_date?: string | null
+          created_at?: string
+          days?: number
+          end_date?: string
+          id?: string
+          reason?: string
+          rejected_reason?: string | null
+          start_date?: string
+          status?: Database["public"]["Enums"]["leave_status"]
+          type?: Database["public"]["Enums"]["leave_type"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          department: string
+          email: string
+          id: string
+          name: string
+          pending_leave: number
+          position: string
+          role: Database["public"]["Enums"]["user_role"]
+          total_leave: number
+          updated_at: string
+          used_leave: number
+        }
+        Insert: {
+          created_at?: string
+          department: string
+          email: string
+          id: string
+          name: string
+          pending_leave?: number
+          position: string
+          role?: Database["public"]["Enums"]["user_role"]
+          total_leave?: number
+          updated_at?: string
+          used_leave?: number
+        }
+        Update: {
+          created_at?: string
+          department?: string
+          email?: string
+          id?: string
+          name?: string
+          pending_leave?: number
+          position?: string
+          role?: Database["public"]["Enums"]["user_role"]
+          total_leave?: number
+          updated_at?: string
+          used_leave?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _user_id: string
+          _role: Database["public"]["Enums"]["user_role"]
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      leave_status: "Pending" | "Approved" | "Rejected"
+      leave_type:
+        | "Annual Leave"
+        | "Sick Leave"
+        | "Personal Leave"
+        | "Maternity Leave"
+        | "Paternity Leave"
+        | "Emergency Leave"
+        | "Study Leave"
+        | "Research Leave"
+      user_role: "staff" | "admin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +258,19 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      leave_status: ["Pending", "Approved", "Rejected"],
+      leave_type: [
+        "Annual Leave",
+        "Sick Leave",
+        "Personal Leave",
+        "Maternity Leave",
+        "Paternity Leave",
+        "Emergency Leave",
+        "Study Leave",
+        "Research Leave",
+      ],
+      user_role: ["staff", "admin"],
+    },
   },
 } as const
