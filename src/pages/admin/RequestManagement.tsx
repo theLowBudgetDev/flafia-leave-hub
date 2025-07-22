@@ -44,6 +44,7 @@ import { Label } from "@/components/ui/label";
 
 interface LeaveRequest {
   id: number;
+  staffId?: string;
   staffName: string;
   department: string;
   type: string;
@@ -52,9 +53,10 @@ interface LeaveRequest {
   days: number;
   status: string;
   appliedDate: string;
-  approvedBy: string | null;
+  approvedBy?: string;
   reason?: string;
   priority?: string;
+  rejectedReason?: string;
 }
 
 const RequestManagement = () => {
@@ -115,13 +117,14 @@ const RequestManagement = () => {
     },
     {
       id: 4,
+      staffId: "staff-4",
       staffName: "Dr. James Wilson",
       department: "Chemistry",
       type: "Personal Leave",
       startDate: "2024-10-18",
       endDate: "2024-10-18",
       days: 1,
-      status: "Rejected",
+      status: "Rejected" as const,
       appliedDate: "2024-10-10",
       approvedBy: null,
       reason: "Family emergency",

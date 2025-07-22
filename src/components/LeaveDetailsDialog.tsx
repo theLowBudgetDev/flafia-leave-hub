@@ -26,7 +26,7 @@ interface LeaveDetailsDialogProps {
     days: number;
     status: string;
     appliedDate: string;
-    approvedBy: string | null;
+    approvedBy?: string;
     reason?: string;
     rejectedReason?: string;
   };

@@ -2,6 +2,7 @@ import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
@@ -9,6 +10,7 @@ import { Download, Filter, Calendar, RefreshCcw } from "lucide-react";
 import { useState } from "react";
 
 const AdminReports = () => {
+  const { toast } = useToast();
   const [timeRange, setTimeRange] = useState("year");
   const [department, setDepartment] = useState("all");
 

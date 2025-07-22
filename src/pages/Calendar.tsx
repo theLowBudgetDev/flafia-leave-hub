@@ -365,15 +365,15 @@ const Calendar = () => {
                           className="p-3 border border-border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
                           onClick={() => handleViewLeaveDetails(leave)}
                         >
-                          <div className="flex justify-between items-start mb-2">
+                           <div className="flex justify-between items-start mb-2">
                             <h4 className="font-medium text-foreground">
-                              {leave.staffName || (user?.name || "You")}
+                              {'staffName' in leave ? leave.staffName : (user?.name || "You")}
                             </h4>
                             <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(leave.status)}`}>
                               {leave.status}
                             </span>
                           </div>
-                          {leave.department && (
+                          {'department' in leave && leave.department && (
                             <p className="text-sm text-muted-foreground">{leave.department}</p>
                           )}
                           <p className="text-sm text-muted-foreground">{leave.type}</p>
