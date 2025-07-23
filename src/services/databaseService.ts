@@ -15,8 +15,18 @@ export const getAllStaff = (): Staff[] => {
 
 // LeaveRequest queries
 export const getLeaveRequestsByStaffId = (staffId: string): LeaveRequest[] => {
-  const stmt = db.prepare('SELECT * FROM leave_requests WHERE staffId = ?');
+  const stmt = db.prepare('SELECT * FROM leave_requests WHERE staffId = ? ORDER BY appliedDate DESC');
   return stmt.all(staffId) as LeaveRequest[];
+};
+
+export const getAllLeaveRequests = (): LeaveRequest[] => {
+  const stmt = db.prepare(`
+    SELECT lr.*, s.name as staffName, s.department 
+    FROM leave_requests lr 
+    JOIN staff s ON lr.staffId = s.id 
+    ORDER BY lr.appliedDate DESC
+  `);
+  return stmt.all() as LeaveRequest[];
 };
 
 export const getLeaveRequestById = (id: number): LeaveRequest | undefined => {

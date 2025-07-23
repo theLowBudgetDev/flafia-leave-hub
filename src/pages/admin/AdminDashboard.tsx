@@ -9,16 +9,14 @@ import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { api, LeaveRequest, Staff } from "@/services/api";
 
-interface PendingRequest {
-  id: number;
-  staff: string;
-  department: string;
-  type: string;
-  dates: string;
-  days: number;
-  priority: string;
-  reason?: string;
+interface DashboardStats {
+  icon: any;
+  label: string;
+  value: string;
+  subtitle: string;
+  trend: string;
 }
 
 interface Activity {
@@ -29,509 +27,498 @@ interface Activity {
 
 const AdminDashboard = () => {
   const { toast } = useToast();
-  const [loading, setLoading] = useState(false);
-  const [selectedRequest, setSelectedRequest] = useState<PendingRequest | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [selectedRequest, setSelectedRequest] = useState<LeaveRequest | null>(null);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
   const [processingRequestId, setProcessingRequestId] = useState<number | null>(null);
+  
+  const [stats, setStats] = useState<DashboardStats[]>([]);
+  const [pendingRequests, setPendingRequests] = useState<LeaveRequest[]>([]);
+  const [recentActivity, setRecentActivity] = useState<Activity[]>([]);
 
-  const [stats, setStats] = useState([
-    {
-      icon: Users,
-      label: "Total Staff",
-      value: "324",
-      subtitle: "Active employees",
-      trend: "+5 this month"
-    },
-    {
-      icon: FileText,
-      label: "Pending Requests",
-      value: "18",
-      subtitle: "Awaiting approval",
-      trend: "3 urgent"
-    },
-    {
-      icon: CheckCircle,
-      label: "Approved Today",
-      value: "12",
-      subtitle: "Leave requests",
-      trend: "+2 from yesterday"
-    },
-    {
-      icon: Calendar,
-      label: "Leave Coverage",
-      value: "85%",
-      subtitle: "Staff availability",
-      trend: "Normal range"
-    }
-  ]);
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
 
-  const [pendingRequests, setPendingRequests] = useState<PendingRequest[]>([
-    {
-      id: 1,
-      staff: "Dr. Sarah Johnson",
-      department: "Computer Science",
-      type: "Annual Leave",
-      dates: "Jan 15 - Jan 22, 2025",
-      days: 6,
-      priority: "Normal",
-      reason: "Family vacation planned months in advance."
-    },
-    {
-      id: 2,
-      staff: "Prof. Michael Adams",
-      department: "Mathematics",
-      type: "Sick Leave",
-      dates: "Jan 12 - Jan 14, 2025",
-      days: 3,
-      priority: "Urgent",
-      reason: "Medical procedure requiring recovery time."
-    },
-    {
-      id: 3,
-      staff: "Dr. Fatima Ali",
-      department: "Physics",
-      type: "Conference",
-      dates: "Jan 20 - Jan 25, 2025",
-      days: 4,
-      priority: "Normal",
-      reason: "Attending the International Physics Conference to present research."
-    },
-    {
-      id: 4,
-      staff: "Dr. James Wilson",
-      department: "Chemistry",
-      type: "Personal Leave",
-      dates: "Jan 18, 2025",
-      days: 1,
-      priority: "Normal",
-      reason: "Family emergency requiring immediate attention."
-    }
-  ]);
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch all data
+      const [staffMembers, allRequests] = await Promise.all([
+        api.getStaffMembers(),
+        api.getLeaveRequests()
+      ]);
 
-  const [recentActivity, setRecentActivity] = useState<Activity[]>([
-    { action: "Approved leave request", staff: "Dr. Mary Brown", time: "2 hours ago" },
-    { action: "Rejected leave request", staff: "Prof. David Lee", time: "4 hours ago" },
-    { action: "New leave request", staff: "Dr. Lisa Chen", time: "6 hours ago" },
-    { action: "Modified leave policy", staff: "System Admin", time: "1 day ago" }
-  ]);
+      // Calculate statistics
+      const pendingCount = allRequests.filter(r => r.status === 'Pending').length;
+      const approvedToday = allRequests.filter(r => {
+        const today = new Date().toISOString().split('T')[0];
+        return r.status === 'Approved' && r.approvedDate === today;
+      }).length;
+      
+      const totalStaffOnLeave = allRequests.filter(r => {
+        const today = new Date();
+        const startDate = new Date(r.startDate);
+        const endDate = new Date(r.endDate);
+        return r.status === 'Approved' && startDate <= today && endDate >= today;
+      }).length;
+      
+      const staffAvailability = Math.round(((staffMembers.length - totalStaffOnLeave) / staffMembers.length) * 100);
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority.toLowerCase()) {
-      case 'urgent':
-        return 'text-destructive bg-destructive/10';
-      case 'high':
-        return 'text-warning bg-warning/10';
-      default:
-        return 'text-muted-foreground bg-muted/50';
+      // Update stats
+      setStats([
+        {
+          icon: Users,
+          label: "Total Staff",
+          value: staffMembers.length.toString(),
+          subtitle: "Active employees",
+          trend: "+5 this month"
+        },
+        {
+          icon: FileText,
+          label: "Pending Requests",
+          value: pendingCount.toString(),
+          subtitle: "Awaiting approval",
+          trend: pendingCount > 5 ? "High volume" : "Normal"
+        },
+        {
+          icon: CheckCircle,
+          label: "Approved Today",
+          value: approvedToday.toString(),
+          subtitle: "Leave requests",
+          trend: approvedToday > 0 ? `+${approvedToday} today` : "No approvals"
+        },
+        {
+          icon: Calendar,
+          label: "Staff Availability",
+          value: `${staffAvailability}%`,
+          subtitle: "Currently available",
+          trend: staffAvailability > 80 ? "Good coverage" : "Low coverage"
+        }
+      ]);
+
+      // Set pending requests
+      const pending = allRequests.filter(r => r.status === 'Pending');
+      setPendingRequests(pending);
+
+      // Generate recent activity
+      const activities: Activity[] = [];
+      
+      // Add recent approvals/rejections
+      const recentDecisions = allRequests
+        .filter(r => r.status !== 'Pending' && r.approvedDate)
+        .sort((a, b) => new Date(b.approvedDate!).getTime() - new Date(a.approvedDate!).getTime())
+        .slice(0, 3);
+
+      recentDecisions.forEach(request => {
+        const staff = staffMembers.find(s => s.id === request.staffId);
+        if (staff) {
+          activities.push({
+            action: `${request.status} ${request.type.toLowerCase()} request`,
+            staff: staff.name,
+            time: getRelativeTime(request.approvedDate!)
+          });
+        }
+      });
+
+      // Add recent applications
+      const recentApplications = allRequests
+        .filter(r => r.status === 'Pending')
+        .sort((a, b) => new Date(b.appliedDate).getTime() - new Date(a.appliedDate).getTime())
+        .slice(0, 2);
+
+      recentApplications.forEach(request => {
+        const staff = staffMembers.find(s => s.id === request.staffId);
+        if (staff) {
+          activities.push({
+            action: `Applied for ${request.type.toLowerCase()}`,
+            staff: staff.name,
+            time: getRelativeTime(request.appliedDate)
+          });
+        }
+      });
+
+      setRecentActivity(activities.slice(0, 5));
+      
+    } catch (error) {
+      console.error("Error fetching dashboard data:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load dashboard data",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleViewDetails = (request: PendingRequest) => {
+  const getRelativeTime = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
+    
+    if (diffInHours < 1) return "Just now";
+    if (diffInHours < 24) return `${diffInHours} hour${diffInHours > 1 ? 's' : ''} ago`;
+    
+    const diffInDays = Math.floor(diffInHours / 24);
+    if (diffInDays < 7) return `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`;
+    
+    return date.toLocaleDateString();
+  };
+
+  const handleViewDetails = (request: LeaveRequest) => {
     setSelectedRequest(request);
     setIsDetailsDialogOpen(true);
   };
 
-  const handleApproveRequest = async (requestId: number) => {
+  const handleApprove = async (requestId: number) => {
     setProcessingRequestId(requestId);
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Update pending requests
-    setPendingRequests(prev => prev.filter(req => req.id !== requestId));
-    
-    // Update stats
-    setStats(prev => {
-      const newStats = [...prev];
-      // Decrease pending requests
-      newStats[1] = {
-        ...newStats[1],
-        value: String(parseInt(newStats[1].value) - 1)
-      };
-      // Increase approved today
-      newStats[2] = {
-        ...newStats[2],
-        value: String(parseInt(newStats[2].value) + 1)
-      };
-      return newStats;
-    });
-    
-    // Add to recent activity
-    const request = pendingRequests.find(req => req.id === requestId);
-    if (request) {
-      setRecentActivity(prev => [
-        { action: `Approved ${request.type.toLowerCase()} request`, staff: request.staff, time: "Just now" },
-        ...prev.slice(0, 3)
-      ]);
+    try {
+      await api.updateLeaveRequestStatus(requestId, "Approved", "admin-1");
+      toast({
+        title: "Success",
+        description: "Leave request approved successfully",
+      });
+      await fetchDashboardData(); // Refresh data
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to approve leave request",
+        variant: "destructive",
+      });
+    } finally {
+      setProcessingRequestId(null);
     }
-    
-    toast({
-      title: "Request Approved",
-      description: `Leave request for ${request?.staff} has been approved.`,
-    });
-    
-    setProcessingRequestId(null);
-    setIsDetailsDialogOpen(false);
   };
 
-  const openRejectDialog = (request: PendingRequest) => {
+  const handleReject = (request: LeaveRequest) => {
     setSelectedRequest(request);
     setIsRejectDialogOpen(true);
   };
 
-  const handleRejectRequest = async () => {
-    if (!selectedRequest) return;
+  const confirmReject = async () => {
+    if (!selectedRequest || !rejectionReason.trim()) return;
     
     setProcessingRequestId(selectedRequest.id);
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Update pending requests
-    setPendingRequests(prev => prev.filter(req => req.id !== selectedRequest.id));
-    
-    // Update stats
-    setStats(prev => {
-      const newStats = [...prev];
-      // Decrease pending requests
-      newStats[1] = {
-        ...newStats[1],
-        value: String(parseInt(newStats[1].value) - 1)
-      };
-      return newStats;
-    });
-    
-    // Add to recent activity
-    setRecentActivity(prev => [
-      { action: `Rejected ${selectedRequest.type.toLowerCase()} request`, staff: selectedRequest.staff, time: "Just now" },
-      ...prev.slice(0, 3)
-    ]);
-    
-    toast({
-      title: "Request Rejected",
-      description: `Leave request for ${selectedRequest.staff} has been rejected.`,
-      variant: "destructive"
-    });
-    
-    setProcessingRequestId(null);
-    setIsRejectDialogOpen(false);
-    setRejectionReason("");
+    try {
+      await api.updateLeaveRequestStatus(
+        selectedRequest.id, 
+        "Rejected", 
+        "admin-1", 
+        rejectionReason
+      );
+      toast({
+        title: "Success",
+        description: "Leave request rejected",
+      });
+      setIsRejectDialogOpen(false);
+      setRejectionReason("");
+      await fetchDashboardData(); // Refresh data
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to reject leave request",
+        variant: "destructive",
+      });
+    } finally {
+      setProcessingRequestId(null);
+    }
   };
 
+  const getPriorityColor = (days: number) => {
+    if (days >= 7) return "text-red-600";
+    if (days >= 3) return "text-yellow-600";
+    return "text-green-600";
+  };
+
+  const formatDateRange = (startDate: string, endDate: string) => {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const options: Intl.DateTimeFormatOptions = { 
+      month: 'short', 
+      day: 'numeric',
+      year: start.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
+    };
+    
+    if (startDate === endDate) {
+      return start.toLocaleDateString('en-US', options);
+    }
+    
+    return `${start.toLocaleDateString('en-US', options)} - ${end.toLocaleDateString('en-US', options)}`;
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <Header />
+        <main className="container mx-auto px-4 py-8">
+          <div className="flex items-center justify-center min-h-[400px]">
+            <Loader2 className="h-8 w-8 animate-spin" />
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Header />
       
-      <main className="container mx-auto px-6 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2">Admin Dashboard</h1>
-          <p className="text-muted-foreground">Manage leave requests and oversee staff operations.</p>
-        </div>
-
-        {/* Stats Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {stats.map((stat, index) => (
-            <Card key={index} className="p-6">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                  <stat.icon className="h-6 w-6 text-primary" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-2xl font-bold text-foreground">{stat.value}</p>
-                  <p className="text-sm text-muted-foreground">{stat.label}</p>
-                  <p className="text-xs text-muted-foreground">{stat.subtitle}</p>
-                  <p className="text-xs text-primary mt-1">{stat.trend}</p>
-                </div>
-              </div>
-            </Card>
-          ))}
-        </div>
-
-        <div className="grid lg:grid-cols-3 gap-8">
-          {/* Pending Requests */}
-          <div className="lg:col-span-2">
-            <Card className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-foreground">Pending Leave Requests</h2>
-                <Link to="/admin/requests">
-                  <Button variant="outline" size="sm">
-                    View All
-                  </Button>
+      <main className="container mx-auto px-4 py-8">
+        <div className="space-y-6">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+              <p className="text-muted-foreground">Manage leave requests and monitor system activity</p>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" asChild>
+                <Link to="/admin/reports">
+                  <TrendingUp className="h-4 w-4 mr-2" />
+                  Reports
                 </Link>
-              </div>
-              
-              <div className="space-y-4">
-                {pendingRequests.length > 0 ? (
-                  pendingRequests.map((request) => (
-                    <div key={request.id} className="border border-border rounded-lg p-4 hover:bg-muted/50 transition-colors">
-                      <div className="flex items-start justify-between mb-3">
-                        <div>
-                          <h3 className="font-medium text-foreground">{request.staff}</h3>
-                          <p className="text-sm text-muted-foreground">{request.department}</p>
-                        </div>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(request.priority)}`}>
-                          {request.priority}
-                        </span>
-                      </div>
-                      
-                      <div className="grid grid-cols-2 gap-4 mb-4">
-                        <div>
-                          <p className="text-sm font-medium text-foreground">{request.type}</p>
-                          <p className="text-xs text-muted-foreground">{request.dates}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-foreground">{request.days} day{request.days > 1 ? 's' : ''}</p>
-                          <p className="text-xs text-muted-foreground">Duration</p>
-                        </div>
-                      </div>
-                      
-                      <div className="flex gap-2">
-                        <Button 
-                          size="sm" 
-                          className="flex-1"
-                          onClick={() => handleApproveRequest(request.id)}
-                          disabled={processingRequestId === request.id}
-                        >
-                          {processingRequestId === request.id ? (
-                            <>
-                              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                              Processing...
-                            </>
-                          ) : (
-                            <>
-                              <CheckCircle className="h-4 w-4 mr-1" />
-                              Approve
-                            </>
-                          )}
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="flex-1"
-                          onClick={() => openRejectDialog(request)}
-                          disabled={processingRequestId === request.id}
-                        >
-                          <XCircle className="h-4 w-4 mr-1" />
-                          Reject
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => handleViewDetails(request)}
-                          disabled={processingRequestId === request.id}
-                        >
-                          <Eye className="h-4 w-4 mr-1" />
-                          View
-                        </Button>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-8">
-                    <p className="text-muted-foreground">No pending requests</p>
-                  </div>
-                )}
-              </div>
-            </Card>
+              </Button>
+              <Button asChild>
+                <Link to="/admin/staff">
+                  <Users className="h-4 w-4 mr-2" />
+                  Manage Staff
+                </Link>
+              </Button>
+            </div>
           </div>
 
-          {/* Quick Actions & Activity */}
-          <div className="space-y-6">
-            {/* Quick Actions */}
-            <Card className="p-6">
-              <h2 className="text-xl font-semibold text-foreground mb-6">Quick Actions</h2>
-              <div className="space-y-3">
-                <Link to="/admin/requests">
-                  <Button className="w-full justify-start">
-                    <FileText className="h-4 w-4 mr-2" />
-                    Manage Requests
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {stats.map((stat, index) => (
+              <Card key={index} className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">{stat.label}</p>
+                    <p className="text-2xl font-bold">{stat.value}</p>
+                    <p className="text-xs text-muted-foreground">{stat.subtitle}</p>
+                  </div>
+                  <stat.icon className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <div className="mt-4">
+                  <p className="text-xs text-muted-foreground">{stat.trend}</p>
+                </div>
+              </Card>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Pending Requests */}
+            <div className="lg:col-span-2">
+              <Card className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-semibold">Pending Requests</h2>
+                  <Button variant="outline" asChild>
+                    <Link to="/admin/requests">View All</Link>
                   </Button>
-                </Link>
-                <Link to="/admin/staff">
-                  <Button variant="outline" className="w-full justify-start">
-                    <Users className="h-4 w-4 mr-2" />
-                    Staff Management
-                  </Button>
-                </Link>
-                <Link to="/admin/calendar">
-                  <Button variant="outline" className="w-full justify-start">
-                    <Calendar className="h-4 w-4 mr-2" />
-                    Leave Calendar
-                  </Button>
-                </Link>
-                <Link to="/admin/reports">
-                  <Button variant="outline" className="w-full justify-start">
-                    <TrendingUp className="h-4 w-4 mr-2" />
-                    Reports & Analytics
-                  </Button>
-                </Link>
-                <Link to="/admin/settings">
-                  <Button variant="outline" className="w-full justify-start">
-                    <AlertTriangle className="h-4 w-4 mr-2" />
-                    System Settings
-                  </Button>
-                </Link>
-              </div>
-            </Card>
+                </div>
+                
+                {pendingRequests.length > 0 ? (
+                  <div className="space-y-4">
+                    {pendingRequests.slice(0, 5).map((request) => (
+                      <div key={request.id} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-medium">{request.staffName || 'Unknown Staff'}</span>
+                            <span className="text-sm text-muted-foreground">•</span>
+                            <span className="text-sm text-muted-foreground">{request.department}</span>
+                          </div>
+                          <div className="text-sm text-muted-foreground mb-1">
+                            {request.type} • {formatDateRange(request.startDate, request.endDate)}
+                          </div>
+                          <div className={`text-sm font-medium ${getPriorityColor(request.days)}`}>
+                            {request.days} day{request.days !== 1 ? 's' : ''}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleViewDetails(request)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleReject(request)}
+                            disabled={processingRequestId === request.id}
+                          >
+                            <XCircle className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => handleApprove(request.id)}
+                            disabled={processingRequestId === request.id}
+                          >
+                            {processingRequestId === request.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <CheckCircle className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>No pending requests</p>
+                  </div>
+                )}
+              </Card>
+            </div>
 
             {/* Recent Activity */}
             <Card className="p-6">
-              <h2 className="text-xl font-semibold text-foreground mb-6">Recent Activity</h2>
-              <div className="space-y-4">
-                {recentActivity.map((activity, index) => (
-                  <div key={index} className="flex items-start gap-3">
-                    <div className="w-2 h-2 bg-primary rounded-full mt-2 flex-shrink-0"></div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-foreground">{activity.action}</p>
-                      <p className="text-xs text-muted-foreground">{activity.staff}</p>
-                      <p className="text-xs text-muted-foreground">{activity.time}</p>
+              <h2 className="text-xl font-semibold mb-4">Recent Activity</h2>
+              {recentActivity.length > 0 ? (
+                <div className="space-y-4">
+                  {recentActivity.map((activity, index) => (
+                    <div key={index} className="flex items-start gap-3">
+                      <div className="w-2 h-2 bg-blue-600 rounded-full mt-2 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium">{activity.staff}</p>
+                        <p className="text-sm text-muted-foreground">{activity.action}</p>
+                        <p className="text-xs text-muted-foreground">{activity.time}</p>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>No recent activity</p>
+                </div>
+              )}
             </Card>
           </div>
+
+          {/* Quick Actions */}
+          <Card className="p-6">
+            <h2 className="text-xl font-semibold mb-4">Quick Actions</h2>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <Button variant="outline" asChild className="h-auto p-4 flex-col gap-2">
+                <Link to="/admin/staff">
+                  <Users className="h-6 w-6" />
+                  Manage Staff
+                </Link>
+              </Button>
+              <Button variant="outline" asChild className="h-auto p-4 flex-col gap-2">
+                <Link to="/admin/requests">
+                  <FileText className="h-6 w-6" />
+                  All Requests
+                </Link>
+              </Button>
+              <Button variant="outline" asChild className="h-auto p-4 flex-col gap-2">
+                <Link to="/admin/calendar">
+                  <Calendar className="h-6 w-6" />
+                  Leave Calendar
+                </Link>
+              </Button>
+              <Button variant="outline" asChild className="h-auto p-4 flex-col gap-2">
+                <Link to="/admin/reports">
+                  <TrendingUp className="h-6 w-6" />
+                  Generate Reports
+                </Link>
+              </Button>
+            </div>
+          </Card>
         </div>
       </main>
 
-      <Footer />
-
-      {/* Leave Details Dialog */}
-      {selectedRequest && (
-        <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Leave Request Details</DialogTitle>
-              <DialogDescription>
-                Review the details of this leave request
-              </DialogDescription>
-            </DialogHeader>
-            
+      {/* Details Dialog */}
+      <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Leave Request Details</DialogTitle>
+          </DialogHeader>
+          {selectedRequest && (
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Staff</p>
-                  <p className="font-medium">{selectedRequest.staff}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Department</p>
-                  <p className="font-medium">{selectedRequest.department}</p>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Leave Type</p>
-                  <p className="font-medium">{selectedRequest.type}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Duration</p>
-                  <p className="font-medium">{selectedRequest.days} day{selectedRequest.days > 1 ? 's' : ''}</p>
-                </div>
-              </div>
-              
               <div>
-                <p className="text-sm text-muted-foreground">Dates</p>
-                <p className="font-medium">{selectedRequest.dates}</p>
+                <Label className="text-sm font-medium">Staff Member</Label>
+                <p className="text-sm text-muted-foreground">{selectedRequest.staffName}</p>
               </div>
-              
               <div>
-                <p className="text-sm text-muted-foreground">Reason</p>
-                <p className="text-sm">{selectedRequest.reason || "No reason provided"}</p>
+                <Label className="text-sm font-medium">Department</Label>
+                <p className="text-sm text-muted-foreground">{selectedRequest.department}</p>
+              </div>
+              <div>
+                <Label className="text-sm font-medium">Leave Type</Label>
+                <p className="text-sm text-muted-foreground">{selectedRequest.type}</p>
+              </div>
+              <div>
+                <Label className="text-sm font-medium">Duration</Label>
+                <p className="text-sm text-muted-foreground">
+                  {formatDateRange(selectedRequest.startDate, selectedRequest.endDate)} ({selectedRequest.days} days)
+                </p>
+              </div>
+              {selectedRequest.reason && (
+                <div>
+                  <Label className="text-sm font-medium">Reason</Label>
+                  <p className="text-sm text-muted-foreground">{selectedRequest.reason}</p>
+                </div>
+              )}
+              <div>
+                <Label className="text-sm font-medium">Applied Date</Label>
+                <p className="text-sm text-muted-foreground">
+                  {new Date(selectedRequest.appliedDate).toLocaleDateString()}
+                </p>
               </div>
             </div>
-            
-            <DialogFooter className="flex justify-between sm:justify-between gap-2">
-              <Button 
-                variant="outline" 
-                onClick={() => setIsDetailsDialogOpen(false)}
-              >
-                Close
-              </Button>
-              <div className="flex gap-2">
-                <Button 
-                  variant="destructive" 
-                  onClick={() => {
-                    setIsDetailsDialogOpen(false);
-                    openRejectDialog(selectedRequest);
-                  }}
-                >
-                  <XCircle className="h-4 w-4 mr-1" />
-                  Reject
-                </Button>
-                <Button 
-                  onClick={() => {
-                    setIsDetailsDialogOpen(false);
-                    handleApproveRequest(selectedRequest.id);
-                  }}
-                >
-                  <CheckCircle className="h-4 w-4 mr-1" />
-                  Approve
-                </Button>
-              </div>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Reject Dialog */}
-      {selectedRequest && (
-        <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Reject Leave Request</DialogTitle>
-              <DialogDescription>
-                Please provide a reason for rejecting this leave request
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm font-medium">{selectedRequest.staff}'s {selectedRequest.type}</p>
-                <p className="text-sm text-muted-foreground">{selectedRequest.dates} ({selectedRequest.days} day{selectedRequest.days > 1 ? 's' : ''})</p>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="rejection-reason">Reason for Rejection</Label>
-                <Textarea
-                  id="rejection-reason"
-                  placeholder="Please provide a reason for rejecting this request..."
-                  value={rejectionReason}
-                  onChange={(e) => setRejectionReason(e.target.value)}
-                  className="min-h-[100px]"
-                  disabled={processingRequestId === selectedRequest.id}
-                />
-              </div>
+      <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reject Leave Request</DialogTitle>
+            <DialogDescription>
+              Please provide a reason for rejecting this leave request.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="reason">Rejection Reason</Label>
+              <Textarea
+                id="reason"
+                placeholder="Enter reason for rejection..."
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                className="mt-1"
+              />
             </div>
-            
-            <DialogFooter>
-              <Button 
-                variant="outline" 
-                onClick={() => setIsRejectDialogOpen(false)}
-                disabled={processingRequestId === selectedRequest.id}
-              >
-                Cancel
-              </Button>
-              <Button 
-                variant="destructive" 
-                onClick={handleRejectRequest}
-                disabled={!rejectionReason.trim() || processingRequestId === selectedRequest.id}
-              >
-                {processingRequestId === selectedRequest.id ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  "Confirm Rejection"
-                )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsRejectDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={confirmReject}
+              disabled={!rejectionReason.trim() || processingRequestId !== null}
+            >
+              {processingRequestId ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : null}
+              Reject Request
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      <Footer />
     </div>
   );
 };

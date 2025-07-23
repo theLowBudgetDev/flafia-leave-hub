@@ -37,10 +37,20 @@ export const api = {
   },
 
   getLeaveRequests: async (staffId?: string): Promise<LeaveRequest[]> => {
-    if (!staffId) return [];
-    const response = await fetch(`${API_BASE_URL}/leave-requests?staffId=${staffId}`);
-    if (!response.ok) throw new Error('Failed to fetch leave requests');
-    return response.json();
+    try {
+      const url = staffId 
+        ? `${API_BASE_URL}/leave-requests?staffId=${staffId}`
+        : `${API_BASE_URL}/leave-requests`;
+      const response = await fetch(url);
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to fetch leave requests: ${errorText}`);
+      }
+      return response.json();
+    } catch (error) {
+      console.error('Error fetching leave requests:', error);
+      throw error;
+    }
   },
 
   getLeaveRequestById: async (id: number): Promise<LeaveRequest | undefined> => {
@@ -50,13 +60,27 @@ export const api = {
   },
 
   createLeaveRequest: async (request: Omit<LeaveRequest, 'id' | 'appliedDate' | 'status'>): Promise<LeaveRequest> => {
-    const response = await fetch(`${API_BASE_URL}/leave-requests`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(request),
-    });
-    if (!response.ok) throw new Error('Failed to create leave request');
-    return response.json();
+    try {
+      console.log('Sending leave request:', request);
+      const response = await fetch(`${API_BASE_URL}/leave-requests`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(request),
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Server response:', errorText);
+        throw new Error(`Failed to create leave request: ${errorText}`);
+      }
+      
+      const result = await response.json();
+      console.log('Leave request created successfully:', result);
+      return result;
+    } catch (error) {
+      console.error('Error creating leave request:', error);
+      throw error;
+    }
   },
 
   updateLeaveRequestStatus: async (id: number, status: "Approved" | "Rejected", approvedBy?: string, rejectedReason?: string): Promise<LeaveRequest | undefined> => {

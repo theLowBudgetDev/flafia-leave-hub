@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { Card } from "@/components/ui/card";
@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "react-router-dom";
+import { api, LeaveRequest } from "@/services/api";
 import { 
   Calendar, 
   Mail, 
@@ -17,233 +18,284 @@ import {
   Clock, 
   Settings as SettingsIcon,
   FileText,
-  Download
+  Download,
+  Loader2
 } from "lucide-react";
+
+interface StaffStats {
+  totalLeave: number;
+  usedLeave: number;
+  pendingLeave: number;
+  remainingLeave: number;
+}
 
 const Profile = () => {
   const { user } = useAuth();
   const [isDownloading, setIsDownloading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [recentLeave, setRecentLeave] = useState<LeaveRequest[]>([]);
+  const [leaveStats, setLeaveStats] = useState<StaffStats | null>(null);
   
-  // Mock user data
-  const userData = {
-    name: user?.name || "Dr. Sarah Johnson",
-    email: user?.email || "sarah.johnson@fulafia.edu.ng",
-    department: user?.department || "Computer Science",
-    position: "Senior Lecturer",
-    phone: "+234 803 123 4567",
-    joinDate: "January 15, 2020",
-    leaveBalance: {
-      total: 25,
-      used: 8,
-      pending: 2,
-      remaining: 15
-    },
-    recentLeave: [
-      {
-        type: "Annual Leave",
-        dates: "Dec 23 - Dec 30, 2024",
-        status: "Approved"
-      },
-      {
-        type: "Sick Leave",
-        dates: "Nov 15, 2024",
-        status: "Pending"
+  useEffect(() => {
+    const fetchProfileData = async () => {
+      if (user?.id) {
+        try {
+          setLoading(true);
+          
+          // Fetch recent leave requests
+          const requests = await api.getLeaveRequests(user.id);
+          setRecentLeave(requests.slice(0, 3)); // Get 3 most recent
+          
+          // Fetch leave statistics
+          const stats = await api.getStaffStats(user.id);
+          setLeaveStats(stats);
+        } catch (error) {
+          console.error("Error fetching profile data:", error);
+        } finally {
+          setLoading(false);
+        }
       }
-    ]
-  };
+    };
 
-  const handleDownloadReport = () => {
+    fetchProfileData();
+  }, [user]);
+
+  const handleDownloadReport = async () => {
     setIsDownloading(true);
-    setTimeout(() => {
-      setIsDownloading(false);
-    }, 1500);
+    // Simulate download
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    setIsDownloading(false);
   };
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case 'approved':
-        return 'bg-success/20 text-success';
+        return 'bg-green-100 text-green-800 border-green-200';
       case 'pending':
-        return 'bg-warning/20 text-warning';
+        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
       case 'rejected':
-        return 'bg-destructive/20 text-destructive';
+        return 'bg-red-100 text-red-800 border-red-200';
       default:
-        return 'bg-muted text-muted-foreground';
+        return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
 
+  const formatDateRange = (startDate: string, endDate: string) => {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const options: Intl.DateTimeFormatOptions = { 
+      month: 'short', 
+      day: 'numeric',
+      year: start.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
+    };
+    
+    if (startDate === endDate) {
+      return start.toLocaleDateString('en-US', options);
+    }
+    
+    return `${start.toLocaleDateString('en-US', options)} - ${end.toLocaleDateString('en-US', options)}`;
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <Header />
+        <main className="container mx-auto px-4 py-8">
+          <div className="flex items-center justify-center min-h-[400px]">
+            <Loader2 className="h-8 w-8 animate-spin" />
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Header />
       
-      <main className="container mx-auto px-6 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2">My Profile</h1>
-          <p className="text-muted-foreground">View and manage your profile information</p>
-        </div>
-
-        <div className="grid md:grid-cols-3 gap-8">
-          <div>
-            <Card className="p-6">
-              <div className="flex flex-col items-center text-center">
-                <Avatar className="h-24 w-24 mb-4">
-                  <AvatarImage src="" />
-                  <AvatarFallback className="text-xl">
-                    {userData.name.split(' ').map(n => n[0]).join('')}
-                  </AvatarFallback>
-                </Avatar>
-                <h2 className="text-xl font-bold text-foreground">{userData.name}</h2>
-                <p className="text-muted-foreground mb-2">{userData.position}</p>
-                <Badge variant="outline" className="mb-4">{userData.department}</Badge>
-                
-                <Link to="/settings">
-                  <Button variant="outline" className="w-full">
+      <main className="container mx-auto px-4 py-8">
+        <div className="max-w-4xl mx-auto space-y-6">
+          {/* Profile Header */}
+          <Card className="p-6">
+            <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
+              <Avatar className="h-24 w-24">
+                <AvatarImage src="" alt={user?.name} />
+                <AvatarFallback className="text-2xl">
+                  {user?.name?.split(' ').map(n => n[0]).join('') || 'U'}
+                </AvatarFallback>
+              </Avatar>
+              
+              <div className="flex-1 space-y-2">
+                <h1 className="text-3xl font-bold">{user?.name || "User"}</h1>
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <GraduationCap className="h-4 w-4" />
+                  <span>Senior Lecturer</span>
+                </div>
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Building className="h-4 w-4" />
+                  <span>{user?.department || "Department"}</span>
+                </div>
+              </div>
+              
+              <div className="flex gap-2">
+                <Button variant="outline" asChild>
+                  <Link to="/settings">
                     <SettingsIcon className="h-4 w-4 mr-2" />
-                    Edit Profile
-                  </Button>
-                </Link>
-              </div>
-              
-              <Separator className="my-6" />
-              
-              <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <Mail className="h-5 w-5 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Email</p>
-                    <p className="font-medium">{userData.email}</p>
-                  </div>
-                </div>
-                
-                <div className="flex items-center gap-3">
-                  <Phone className="h-5 w-5 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Phone</p>
-                    <p className="font-medium">{userData.phone}</p>
-                  </div>
-                </div>
-                
-                <div className="flex items-center gap-3">
-                  <Building className="h-5 w-5 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Department</p>
-                    <p className="font-medium">{userData.department}</p>
-                  </div>
-                </div>
-                
-                <div className="flex items-center gap-3">
-                  <GraduationCap className="h-5 w-5 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Position</p>
-                    <p className="font-medium">{userData.position}</p>
-                  </div>
-                </div>
-                
-                <div className="flex items-center gap-3">
-                  <Calendar className="h-5 w-5 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Joined</p>
-                    <p className="font-medium">{userData.joinDate}</p>
-                  </div>
-                </div>
-              </div>
-            </Card>
-          </div>
-          
-          <div className="md:col-span-2 space-y-8">
-            <Card className="p-6">
-              <h2 className="text-xl font-semibold text-foreground mb-6">Leave Balance</h2>
-              
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                <div className="text-center p-4 bg-muted/30 rounded-lg">
-                  <p className="text-2xl font-bold text-foreground">{userData.leaveBalance.total}</p>
-                  <p className="text-sm text-muted-foreground">Total Days</p>
-                </div>
-                
-                <div className="text-center p-4 bg-muted/30 rounded-lg">
-                  <p className="text-2xl font-bold text-foreground">{userData.leaveBalance.used}</p>
-                  <p className="text-sm text-muted-foreground">Used Days</p>
-                </div>
-                
-                <div className="text-center p-4 bg-muted/30 rounded-lg">
-                  <p className="text-2xl font-bold text-foreground">{userData.leaveBalance.pending}</p>
-                  <p className="text-sm text-muted-foreground">Pending Days</p>
-                </div>
-                
-                <div className="text-center p-4 bg-primary/10 rounded-lg">
-                  <p className="text-2xl font-bold text-primary">{userData.leaveBalance.remaining}</p>
-                  <p className="text-sm text-muted-foreground">Remaining Days</p>
-                </div>
-              </div>
-              
-              <div className="flex justify-end mt-6">
+                    Settings
+                  </Link>
+                </Button>
                 <Button 
-                  variant="outline" 
-                  size="sm"
                   onClick={handleDownloadReport}
                   disabled={isDownloading}
                 >
                   {isDownloading ? (
-                    <span className="flex items-center">
-                      <span className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full mr-2" />
-                      Downloading...
-                    </span>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   ) : (
-                    <>
-                      <Download className="h-4 w-4 mr-2" />
-                      Download Report
-                    </>
+                    <Download className="h-4 w-4 mr-2" />
                   )}
+                  Report
                 </Button>
               </div>
-            </Card>
-            
+            </div>
+          </Card>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Contact Information */}
             <Card className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-foreground">Recent Leave Requests</h2>
-                <Link to="/history">
-                  <Button variant="outline" size="sm">
-                    View All
-                  </Button>
-                </Link>
+              <h2 className="text-xl font-semibold mb-4">Contact Information</h2>
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <Mail className="h-5 w-5 text-muted-foreground" />
+                  <span>{user?.email || "email@fulafia.edu.ng"}</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Phone className="h-5 w-5 text-muted-foreground" />
+                  <span>+234 803 123 4567</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Calendar className="h-5 w-5 text-muted-foreground" />
+                  <span>Joined January 15, 2020</span>
+                </div>
               </div>
-              
-              {userData.recentLeave.length > 0 ? (
+            </Card>
+
+            {/* Leave Balance */}
+            <Card className="p-6">
+              <h2 className="text-xl font-semibold mb-4">Leave Balance</h2>
+              {leaveStats ? (
                 <div className="space-y-4">
-                  {userData.recentLeave.map((leave, index) => (
-                    <div key={index} className="flex items-center justify-between p-4 border border-border rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-muted rounded-full">
-                          <Clock className="h-5 w-5 text-muted-foreground" />
-                        </div>
-                        <div>
-                          <p className="font-medium">{leave.type}</p>
-                          <p className="text-sm text-muted-foreground">{leave.dates}</p>
-                        </div>
-                      </div>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(leave.status)}`}>
-                        {leave.status}
-                      </span>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Total Leave</span>
+                    <span className="font-semibold">{leaveStats.totalLeave} days</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Used</span>
+                    <span className="font-semibold text-red-600">{leaveStats.usedLeave} days</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Pending</span>
+                    <span className="font-semibold text-yellow-600">{leaveStats.pendingLeave} days</span>
+                  </div>
+                  <Separator />
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Remaining</span>
+                    <span className="font-semibold text-green-600">{leaveStats.remainingLeave} days</span>
+                  </div>
+                  
+                  {/* Progress Bar */}
+                  <div className="mt-4">
+                    <div className="flex justify-between text-sm text-muted-foreground mb-2">
+                      <span>Leave Usage</span>
+                      <span>{Math.round((leaveStats.usedLeave / leaveStats.totalLeave) * 100)}%</span>
                     </div>
-                  ))}
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${(leaveStats.usedLeave / leaveStats.totalLeave) * 100}%` }}
+                      />
+                    </div>
+                  </div>
                 </div>
               ) : (
-                <div className="text-center py-8">
-                  <FileText className="h-12 w-12 text-muted-foreground/50 mx-auto mb-4" />
-                  <p className="text-muted-foreground">No recent leave requests</p>
+                <div className="flex items-center justify-center h-32">
+                  <Loader2 className="h-6 w-6 animate-spin" />
                 </div>
               )}
-              
-              <div className="mt-6">
-                <Link to="/apply">
-                  <Button className="w-full">Apply for Leave</Button>
-                </Link>
-              </div>
             </Card>
           </div>
+
+          {/* Recent Leave Requests */}
+          <Card className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold">Recent Leave Requests</h2>
+              <Button variant="outline" asChild>
+                <Link to="/history">
+                  <FileText className="h-4 w-4 mr-2" />
+                  View All
+                </Link>
+              </Button>
+            </div>
+            
+            {recentLeave.length > 0 ? (
+              <div className="space-y-4">
+                {recentLeave.map((leave) => (
+                  <div key={leave.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="space-y-1">
+                      <div className="font-medium">{leave.type}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {formatDateRange(leave.startDate, leave.endDate)} • {leave.days} day{leave.days !== 1 ? 's' : ''}
+                      </div>
+                      {leave.reason && (
+                        <div className="text-sm text-muted-foreground">
+                          {leave.reason}
+                        </div>
+                      )}
+                    </div>
+                    <Badge className={getStatusColor(leave.status)}>
+                      {leave.status}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>No recent leave requests</p>
+                <Button variant="outline" className="mt-4" asChild>
+                  <Link to="/apply-leave">Apply for Leave</Link>
+                </Button>
+              </div>
+            )}
+          </Card>
+
+          {/* Quick Actions */}
+          <Card className="p-6">
+            <h2 className="text-xl font-semibold mb-4">Quick Actions</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Button asChild className="h-auto p-4 flex-col gap-2">
+                <Link to="/apply-leave">
+                  <FileText className="h-6 w-6" />
+                  Apply for Leave
+                </Link>
+              </Button>
+              <Button variant="outline" asChild className="h-auto p-4 flex-col gap-2">
+                <Link to="/history">
+                  <Clock className="h-6 w-6" />
+                  Leave History
+                </Link>
+              </Button>
+              <Button variant="outline" asChild className="h-auto p-4 flex-col gap-2">
+                <Link to="/calendar">
+                  <Calendar className="h-6 w-6" />
+                  View Calendar
+                </Link>
+              </Button>
+            </div>
+          </Card>
         </div>
       </main>
-
+      
       <Footer />
     </div>
   );
