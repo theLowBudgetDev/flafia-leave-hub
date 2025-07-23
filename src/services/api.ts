@@ -1,15 +1,17 @@
-// Mock API service for leave management system
+// API functions calling the new backend API server endpoints
+
+const API_BASE_URL = 'http://localhost:4000/api';
 
 export interface LeaveRequest {
   id: number;
   staffId: string;
-  staffName: string;
-  department: string;
+  staffName?: string;
+  department?: string;
   type: string;
   startDate: string;
   endDate: string;
   days: number;
-  reason: string;
+  reason?: string;
   status: "Pending" | "Approved" | "Rejected";
   appliedDate: string;
   approvedBy?: string;
@@ -17,54 +19,6 @@ export interface LeaveRequest {
   rejectedReason?: string;
 }
 
-// Mock data
-const leaveRequests: LeaveRequest[] = [
-  {
-    id: 1,
-    staffId: "staff-1",
-    staffName: "Dr. Sarah Johnson",
-    department: "Computer Science",
-    type: "Annual Leave",
-    startDate: "2024-12-23",
-    endDate: "2024-12-30",
-    days: 7,
-    reason: "Family vacation",
-    status: "Approved",
-    appliedDate: "2024-11-15",
-    approvedBy: "Admin User",
-    approvedDate: "2024-11-20"
-  },
-  {
-    id: 2,
-    staffId: "staff-1",
-    staffName: "Dr. Sarah Johnson",
-    department: "Computer Science",
-    type: "Sick Leave",
-    startDate: "2024-11-15",
-    endDate: "2024-11-15",
-    days: 1,
-    reason: "Medical appointment",
-    status: "Pending",
-    appliedDate: "2024-11-10"
-  },
-  {
-    id: 3,
-    staffId: "staff-1",
-    staffName: "Dr. Sarah Johnson",
-    department: "Computer Science",
-    type: "Personal Leave",
-    startDate: "2024-10-20",
-    endDate: "2024-10-21",
-    days: 2,
-    reason: "Family emergency",
-    status: "Approved",
-    appliedDate: "2024-10-15",
-    approvedBy: "Admin User",
-    approvedDate: "2024-10-16"
-  }
-];
-
-// Staff data
 export interface Staff {
   id: string;
   name: string;
@@ -76,104 +30,59 @@ export interface Staff {
   pendingLeave: number;
 }
 
-const staffMembers: Staff[] = [
-  {
-    id: "staff-1",
-    name: "Dr. Sarah Johnson",
-    email: "sarah.johnson@fulafia.edu.ng",
-    department: "Computer Science",
-    position: "Senior Lecturer",
-    totalLeave: 25,
-    usedLeave: 8,
-    pendingLeave: 2
-  },
-  {
-    id: "staff-2",
-    name: "Prof. Michael Adams",
-    email: "michael.adams@fulafia.edu.ng",
-    department: "Mathematics",
-    position: "Professor",
-    totalLeave: 30,
-    usedLeave: 12,
-    pendingLeave: 3
-  },
-  {
-    id: "staff-3",
-    name: "Dr. Fatima Ali",
-    email: "fatima.ali@fulafia.edu.ng",
-    department: "Physics",
-    position: "Associate Professor",
-    totalLeave: 25,
-    usedLeave: 5,
-    pendingLeave: 0
-  }
-];
-
-// API functions
 export const api = {
-  // Auth
   login: async (email: string, password: string) => {
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // Implement login API call if needed
     return { success: true };
   },
 
-  // Leave requests
   getLeaveRequests: async (staffId?: string): Promise<LeaveRequest[]> => {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    if (staffId) {
-      return leaveRequests.filter(request => request.staffId === staffId);
-    }
-    return leaveRequests;
+    if (!staffId) return [];
+    const response = await fetch(`${API_BASE_URL}/leave-requests?staffId=${staffId}`);
+    if (!response.ok) throw new Error('Failed to fetch leave requests');
+    return response.json();
   },
 
   getLeaveRequestById: async (id: number): Promise<LeaveRequest | undefined> => {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return leaveRequests.find(request => request.id === id);
+    const response = await fetch(`${API_BASE_URL}/leave-requests/${id}`);
+    if (!response.ok) return undefined;
+    return response.json();
   },
 
   createLeaveRequest: async (request: Omit<LeaveRequest, 'id' | 'appliedDate' | 'status'>): Promise<LeaveRequest> => {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    const newRequest: LeaveRequest = {
-      ...request,
-      id: leaveRequests.length + 1,
-      appliedDate: new Date().toISOString().split('T')[0],
-      status: "Pending"
-    };
-    leaveRequests.push(newRequest);
-    return newRequest;
+    const response = await fetch(`${API_BASE_URL}/leave-requests`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(request),
+    });
+    if (!response.ok) throw new Error('Failed to create leave request');
+    return response.json();
   },
 
   updateLeaveRequestStatus: async (id: number, status: "Approved" | "Rejected", approvedBy?: string, rejectedReason?: string): Promise<LeaveRequest | undefined> => {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    const request = leaveRequests.find(req => req.id === id);
-    if (request) {
-      request.status = status;
-      if (status === "Approved") {
-        request.approvedBy = approvedBy;
-        request.approvedDate = new Date().toISOString().split('T')[0];
-      } else if (status === "Rejected") {
-        request.rejectedReason = rejectedReason;
-      }
-      return request;
-    }
-    return undefined;
+    const response = await fetch(`${API_BASE_URL}/leave-requests/${id}/status`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status, approvedBy, rejectedReason }),
+    });
+    if (!response.ok) return undefined;
+    return response.json();
   },
 
-  // Staff
   getStaffMembers: async (): Promise<Staff[]> => {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return staffMembers;
+    const response = await fetch(`${API_BASE_URL}/staff`);
+    if (!response.ok) throw new Error('Failed to fetch staff members');
+    return response.json();
   },
 
   getStaffById: async (id: string): Promise<Staff | undefined> => {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return staffMembers.find(staff => staff.id === id);
+    const response = await fetch(`${API_BASE_URL}/staff/${id}`);
+    if (!response.ok) return undefined;
+    return response.json();
   },
 
-  // Stats
   getLeaveStats: async () => {
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // Implement if backend endpoint available
     return {
       totalApplications: 1247,
       pendingApproval: 23,
@@ -183,11 +92,8 @@ export const api = {
   },
 
   getStaffStats: async (staffId: string) => {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    const staff = staffMembers.find(s => s.id === staffId);
-    if (!staff) {
-      throw new Error("Staff not found");
-    }
+    const staff = await api.getStaffById(staffId);
+    if (!staff) throw new Error("Staff not found");
     return {
       totalLeave: staff.totalLeave,
       usedLeave: staff.usedLeave,

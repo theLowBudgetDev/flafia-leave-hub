@@ -18,7 +18,10 @@ type AuthContextType = {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => {
+    const storedUser = localStorage.getItem('user');
+    return storedUser ? JSON.parse(storedUser) : null;
+  });
 
   // In a real app, this would make an API call to authenticate
   const login = async (email: string, password: string, role: "staff" | "admin"): Promise<boolean> => {
@@ -28,23 +31,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       // Simple validation for demo purposes
       if (email && password) {
+        let loggedInUser;
         if (role === "admin" && email.includes("admin")) {
-          setUser({
+          loggedInUser = {
             id: "admin-1",
             name: "Admin User",
             email,
             role: "admin",
             department: "Human Resources"
-          });
+          };
         } else {
-          setUser({
+          loggedInUser = {
             id: "staff-1",
             name: "Staff User",
             email,
             role: "staff",
             department: "Computer Science"
-          });
+          };
         }
+        setUser(loggedInUser);
+        localStorage.setItem('user', JSON.stringify(loggedInUser));
         return true;
       }
       return false;
@@ -56,6 +62,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = () => {
     setUser(null);
+    localStorage.removeItem('user');
   };
 
   return (
