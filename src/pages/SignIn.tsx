@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { GraduationCap, Mail, Lock, UserCog, Users, Loader2 } from "lucide-react";
+import { Mail, Lock, UserCog, Users, Loader2 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -94,9 +94,11 @@ const SignIn = () => {
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
             <div className="flex justify-center mb-4">
-              <div className="p-3 bg-primary rounded-xl">
-                <GraduationCap className="h-8 w-8 text-primary-foreground" />
-              </div>
+              <img 
+                src="/images/logo.png" 
+                alt="FULafia Logo" 
+                className="h-16 w-auto object-contain"
+              />
             </div>
             <h1 className="text-3xl font-bold text-foreground mb-2">Welcome Back</h1>
             <p className="text-muted-foreground">Sign in to your FULafia Leave Management account</p>

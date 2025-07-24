@@ -1,6 +1,5 @@
 
 import { Button } from "@/components/ui/button";
-import { GraduationCap } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { MobileNav } from "./MobileNav";
 import { NotificationDropdown } from "./NotificationDropdown";
@@ -21,9 +20,11 @@ export const Header = () => {
       <div className="container mx-auto px-6 py-4">
         <div className="flex items-center justify-between">
           <Link to="/" className="flex items-center gap-3">
-            <div className="p-2 bg-primary rounded-lg">
-              <GraduationCap className="h-6 w-6 text-primary-foreground" />
-            </div>
+            <img 
+              src="/images/logo.png" 
+              alt="FULafia Logo" 
+              className="h-12 w-auto object-contain"
+            />
             <div>
               <h1 className="text-xl font-bold text-foreground">FULafia</h1>
               <p className="text-sm text-muted-foreground">Leave Management System</p>

@@ -1,4 +1,4 @@
-import { GraduationCap, Mail, Phone, MapPin } from "lucide-react";
+import { Mail, Phone, MapPin } from "lucide-react";
 import { Link } from "react-router-dom";
 
 export const Footer = () => {
@@ -10,9 +10,11 @@ export const Footer = () => {
         <div className="grid md:grid-cols-4 gap-8">
           <div className="col-span-2">
             <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-primary rounded-lg">
-                <GraduationCap className="h-6 w-6 text-primary-foreground" />
-              </div>
+              <img 
+                src="/images/logo.png" 
+                alt="FULafia Logo" 
+                className="h-10 w-auto object-contain"
+              />
               <div>
                 <h3 className="text-lg font-bold text-foreground">FULafia Leave Management</h3>
                 <p className="text-sm text-muted-foreground">Federal University, Lafia</p>
