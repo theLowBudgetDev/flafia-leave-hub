@@ -12,6 +12,9 @@ import {
   createStaff,
   deleteStaff,
   getNotificationsByStaffId,
+  createNotification,
+  markNotificationRead,
+  deleteNotification,
   getSettingsByStaffId,
   saveSettings
 } from './services/databaseService';
@@ -217,6 +220,59 @@ app.post('/api/settings', (req, res) => {
   } catch (error) {
     console.error('Error saving settings:', error);
     res.status(500).json({ error: 'Failed to save settings' });
+  }
+});
+
+// Notification endpoints
+app.get('/api/notifications/:staffId', (req, res) => {
+  try {
+    const staffId = req.params.staffId;
+    const notifications = getNotificationsByStaffId(staffId);
+    res.json(notifications);
+  } catch (error) {
+    console.error('Error fetching notifications:', error);
+    res.status(500).json({ error: 'Failed to fetch notifications' });
+  }
+});
+
+app.post('/api/notifications', (req, res) => {
+  try {
+    const notification = createNotification(req.body);
+    res.status(201).json(notification);
+  } catch (error) {
+    console.error('Error creating notification:', error);
+    res.status(500).json({ error: 'Failed to create notification' });
+  }
+});
+
+app.put('/api/notifications/:id/read', (req, res) => {
+  try {
+    const id = req.params.id;
+    const { read } = req.body;
+    const success = markNotificationRead(id, read);
+    if (success) {
+      res.json({ success: true });
+    } else {
+      res.status(404).json({ error: 'Notification not found' });
+    }
+  } catch (error) {
+    console.error('Error updating notification:', error);
+    res.status(500).json({ error: 'Failed to update notification' });
+  }
+});
+
+app.delete('/api/notifications/:id', (req, res) => {
+  try {
+    const id = req.params.id;
+    const success = deleteNotification(id);
+    if (success) {
+      res.json({ success: true });
+    } else {
+      res.status(404).json({ error: 'Notification not found' });
+    }
+  } catch (error) {
+    console.error('Error deleting notification:', error);
+    res.status(500).json({ error: 'Failed to delete notification' });
   }
 });
 

@@ -33,11 +33,37 @@ export const NotificationDropdown = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
 
+  // Load notifications from localStorage on component mount
   useEffect(() => {
     if (user?.id) {
+      loadNotificationsFromStorage();
       fetchNotifications();
     }
   }, [user]);
+
+  const loadNotificationsFromStorage = () => {
+    if (!user?.id) return;
+    
+    try {
+      const stored = localStorage.getItem(`notifications_${user.id}`);
+      if (stored) {
+        const parsedNotifications = JSON.parse(stored);
+        setNotifications(parsedNotifications);
+      }
+    } catch (error) {
+      console.error('Error loading notifications from storage:', error);
+    }
+  };
+
+  const saveNotificationsToStorage = (notifs: Notification[]) => {
+    if (!user?.id) return;
+    
+    try {
+      localStorage.setItem(`notifications_${user.id}`, JSON.stringify(notifs));
+    } catch (error) {
+      console.error('Error saving notifications to storage:', error);
+    }
+  };
 
   const fetchNotifications = async () => {
     if (!user?.id) return;
@@ -46,7 +72,19 @@ export const NotificationDropdown = () => {
       setLoading(true);
       const requests = await api.getLeaveRequests(user.id);
       const generatedNotifications = generateNotifications(requests);
-      setNotifications(generatedNotifications.slice(0, 5)); // Show only recent 5 notifications
+      
+      // Merge with existing notifications, preserving read status
+      const existingNotifications = notifications;
+      const mergedNotifications = generatedNotifications.map(newNotif => {
+        const existing = existingNotifications.find(n => 
+          n.relatedRequestId === newNotif.relatedRequestId && 
+          n.type === newNotif.type
+        );
+        return existing ? { ...newNotif, unread: existing.unread } : newNotif;
+      });
+      
+      setNotifications(mergedNotifications.slice(0, 10)); // Show recent 10 notifications
+      saveNotificationsToStorage(mergedNotifications.slice(0, 10));
     } catch (error) {
       console.error("Error fetching notifications:", error);
     } finally {
@@ -165,10 +203,13 @@ export const NotificationDropdown = () => {
   const unreadCount = notifications.filter(n => n.unread).length;
 
   const markAllAsRead = () => {
-    setNotifications(notifications.map(notification => ({
+    const updatedNotifications = notifications.map(notification => ({
       ...notification,
       unread: false
-    })));
+    }));
+    
+    setNotifications(updatedNotifications);
+    saveNotificationsToStorage(updatedNotifications);
     
     toast({
       title: "Notifications Updated",
@@ -177,13 +218,19 @@ export const NotificationDropdown = () => {
   };
 
   const markAsRead = (id: number) => {
-    setNotifications(notifications.map(notification => 
+    const updatedNotifications = notifications.map(notification => 
       notification.id === id ? { ...notification, unread: false } : notification
-    ));
+    );
+    
+    setNotifications(updatedNotifications);
+    saveNotificationsToStorage(updatedNotifications);
   };
 
   const removeNotification = (id: number) => {
-    setNotifications(notifications.filter(notification => notification.id !== id));
+    const updatedNotifications = notifications.filter(notification => notification.id !== id);
+    
+    setNotifications(updatedNotifications);
+    saveNotificationsToStorage(updatedNotifications);
     
     toast({
       title: "Notification Removed",

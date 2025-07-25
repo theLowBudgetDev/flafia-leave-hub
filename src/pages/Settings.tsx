@@ -37,7 +37,7 @@ const Settings = () => {
   // Profile settings
   const [name, setName] = useState(user?.name || "");
   const [email, setEmail] = useState(user?.email || "");
-  const [phone, setPhone] = useState("+234 803 123 4567");
+  const [phone, setPhone] = useState("");
   const [department, setDepartment] = useState(user?.department || "");
 
   // Notification settings
@@ -49,61 +49,61 @@ const Settings = () => {
   // Security settings
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
 
-  // Fetch settings from backend
   useEffect(() => {
-    if (!user?.id) return;
-    setSettingsLoading(true);
-    setSettingsError(null);
-    (async () => {
-      try {
-        const settings = await api.getSettings(user.id);
-        setEmailNotifications(settings.emailNotifications);
-        setPushNotifications(settings.pushNotifications);
-        setLeaveUpdates(settings.leaveUpdates);
-        setSystemAlerts(settings.systemAlerts);
-      } catch (err: any) {
-        setSettingsError("Failed to load settings");
-      } finally {
-        setSettingsLoading(false);
+    const fetchSettings = async () => {
+      if (user?.id) {
+        try {
+          setSettingsLoading(true);
+          setSettingsError(null);
+          
+          // Fetch user settings
+          const settings = await api.getSettings(user.id);
+          setEmailNotifications(settings.emailNotifications);
+          setPushNotifications(settings.pushNotifications);
+          setLeaveUpdates(settings.leaveUpdates);
+          setSystemAlerts(settings.systemAlerts);
+          
+          // Fetch user profile data
+          const staffData = await api.getStaffById(user.id);
+          if (staffData) {
+            setName(staffData.name);
+            setEmail(staffData.email);
+            setPhone(staffData.phone || "");
+            setDepartment(staffData.department);
+          }
+        } catch (error) {
+          console.error('Error fetching settings:', error);
+          setSettingsError('Failed to load settings');
+        } finally {
+          setSettingsLoading(false);
+        }
       }
-    })();
+    };
+    
+    fetchSettings();
   }, [user]);
 
-
-  const handleSaveProfile = () => {
-    setIsSaving(true);
+  const handleSaveProfile = async () => {
+    if (!user?.id) return;
     
-    // Simulate API call
-    setTimeout(() => {
-      setIsSaving(false);
+    setIsSaving(true);
+    try {
+      await api.updateStaff(user.id, {
+        name,
+        email,
+        phone,
+        department
+      });
+      
       toast({
         title: "Profile Updated",
-        description: "Your profile information has been updated successfully.",
+        description: "Your profile information has been saved successfully.",
       });
-    }, 1000);
-  };
-
-  const handleSaveNotifications = async () => {
-    if (!user?.id) return;
-    setIsSaving(true);
-    setSettingsError(null);
-    try {
-      await api.saveSettings({
-        staffId: user.id,
-        emailNotifications,
-        pushNotifications,
-        leaveUpdates,
-        systemAlerts,
-      });
-      toast({
-        title: "Notification Settings Updated",
-        description: "Your notification preferences have been saved.",
-      });
-    } catch (err: any) {
-      setSettingsError("Failed to save settings");
+    } catch (error) {
+      console.error('Error updating profile:', error);
       toast({
         title: "Error",
-        description: "Failed to save notification settings",
+        description: "Failed to update profile. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -111,6 +111,34 @@ const Settings = () => {
     }
   };
 
+  const handleSaveNotifications = async () => {
+    if (!user?.id) return;
+    
+    setIsSaving(true);
+    try {
+      await api.saveSettings({
+        staffId: user.id,
+        emailNotifications,
+        pushNotifications,
+        leaveUpdates,
+        systemAlerts
+      });
+      
+      toast({
+        title: "Notifications Updated",
+        description: "Your notification preferences have been saved.",
+      });
+    } catch (error) {
+      console.error('Error updating notifications:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update notifications. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const handleSaveSecurity = () => {
     setIsSaving(true);
