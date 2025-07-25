@@ -1,316 +1,444 @@
+import { useState, useEffect } from "react";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from "@/components/ui/table";
+import { 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  LineChart,
+  Line
+} from "recharts";
+import { 
+  Download, 
+  Calendar, 
+  Users, 
+  TrendingUp, 
+  FileText,
+  Loader2
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
-import { Download, Filter, Calendar, RefreshCcw } from "lucide-react";
-import { useState } from "react";
+import { api, LeaveRequest, Staff } from "@/services/api";
 
 const AdminReports = () => {
   const { toast } = useToast();
-  const [timeRange, setTimeRange] = useState("year");
-  const [department, setDepartment] = useState("all");
+  const [loading, setLoading] = useState(true);
+  const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
+  const [staff, setStaff] = useState<Staff[]>([]);
+  const [selectedPeriod, setSelectedPeriod] = useState("this-year");
+  const [selectedDepartment, setSelectedDepartment] = useState("all");
 
-  // Mock data for charts
-  const leaveTypeData = [
-    { name: "Annual Leave", value: 45 },
-    { name: "Sick Leave", value: 25 },
-    { name: "Personal Leave", value: 15 },
-    { name: "Study Leave", value: 8 },
-    { name: "Maternity Leave", value: 5 },
-    { name: "Other", value: 2 },
-  ];
+  useEffect(() => {
+    fetchReportData();
+  }, []);
 
-  const monthlyData = [
-    { name: "Jan", annual: 5, sick: 3, personal: 2, other: 1 },
-    { name: "Feb", annual: 7, sick: 4, personal: 1, other: 0 },
-    { name: "Mar", annual: 3, sick: 2, personal: 3, other: 1 },
-    { name: "Apr", annual: 4, sick: 5, personal: 2, other: 0 },
-    { name: "May", annual: 6, sick: 3, personal: 1, other: 2 },
-    { name: "Jun", annual: 8, sick: 2, personal: 0, other: 1 },
-    { name: "Jul", annual: 10, sick: 1, personal: 2, other: 0 },
-    { name: "Aug", annual: 12, sick: 3, personal: 1, other: 1 },
-    { name: "Sep", annual: 9, sick: 4, personal: 2, other: 0 },
-    { name: "Oct", annual: 7, sick: 6, personal: 3, other: 1 },
-    { name: "Nov", annual: 5, sick: 3, personal: 2, other: 0 },
-    { name: "Dec", annual: 15, sick: 2, personal: 1, other: 2 },
-  ];
+  const fetchReportData = async () => {
+    try {
+      setLoading(true);
+      const [requestsData, staffData] = await Promise.all([
+        api.getLeaveRequests(),
+        api.getStaffMembers()
+      ]);
+      setLeaveRequests(requestsData);
+      setStaff(staffData);
+    } catch (error) {
+      console.error("Error fetching report data:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load report data",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const departmentData = [
-    { name: "Computer Science", value: 25 },
-    { name: "Mathematics", value: 18 },
-    { name: "Physics", value: 15 },
-    { name: "Chemistry", value: 12 },
-    { name: "Biology", value: 10 },
-    { name: "Engineering", value: 20 },
-  ];
+  // Filter data based on selected period and department
+  const filteredRequests = leaveRequests.filter(request => {
+    const requestDate = new Date(request.appliedDate);
+    const now = new Date();
+    
+    // Filter by period
+    let periodMatch = true;
+    switch (selectedPeriod) {
+      case "this-month":
+        periodMatch = requestDate.getMonth() === now.getMonth() && 
+                     requestDate.getFullYear() === now.getFullYear();
+        break;
+      case "last-month":
+        const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1);
+        periodMatch = requestDate.getMonth() === lastMonth.getMonth() && 
+                     requestDate.getFullYear() === lastMonth.getFullYear();
+        break;
+      case "this-year":
+        periodMatch = requestDate.getFullYear() === now.getFullYear();
+        break;
+      case "last-year":
+        periodMatch = requestDate.getFullYear() === now.getFullYear() - 1;
+        break;
+    }
+    
+    // Filter by department
+    const departmentMatch = selectedDepartment === "all" || 
+                           request.department === selectedDepartment;
+    
+    return periodMatch && departmentMatch;
+  });
 
-  const statusData = [
-    { name: "Approved", value: 75 },
-    { name: "Pending", value: 15 },
-    { name: "Rejected", value: 10 },
-  ];
+  // Calculate statistics
+  const totalRequests = filteredRequests.length;
+  const approvedRequests = filteredRequests.filter(r => r.status === 'Approved').length;
+  const pendingRequests = filteredRequests.filter(r => r.status === 'Pending').length;
+  const rejectedRequests = filteredRequests.filter(r => r.status === 'Rejected').length;
+  const totalDaysRequested = filteredRequests.reduce((sum, r) => sum + r.days, 0);
+  const averageDaysPerRequest = totalRequests > 0 ? (totalDaysRequested / totalRequests).toFixed(1) : "0";
 
-  // Colors for pie charts
-  const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8", "#82ca9d"];
-  const STATUS_COLORS = ["#10B981", "#F59E0B", "#EF4444"];
+  // Leave types data for pie chart
+  const leaveTypesData = filteredRequests.reduce((acc, request) => {
+    const existing = acc.find(item => item.name === request.type);
+    if (existing) {
+      existing.value += 1;
+    } else {
+      acc.push({ name: request.type, value: 1 });
+    }
+    return acc;
+  }, [] as { name: string; value: number }[]);
+
+  // Monthly trends data
+  const monthlyData = Array.from({ length: 12 }, (_, i) => {
+    const month = new Date(2024, i).toLocaleString('default', { month: 'short' });
+    const monthRequests = leaveRequests.filter(request => {
+      const requestDate = new Date(request.appliedDate);
+      return requestDate.getMonth() === i && requestDate.getFullYear() === 2024;
+    });
+    
+    return {
+      month,
+      requests: monthRequests.length,
+      approved: monthRequests.filter(r => r.status === 'Approved').length,
+      rejected: monthRequests.filter(r => r.status === 'Rejected').length
+    };
+  });
+
+  // Department statistics
+  const departments = Array.from(new Set(staff.map(s => s.department).filter(Boolean)));
+  const departmentStats = departments.map(dept => {
+    const deptRequests = filteredRequests.filter(r => r.department === dept);
+    const deptStaff = staff.filter(s => s.department === dept);
+    
+    return {
+      department: dept,
+      totalStaff: deptStaff.length,
+      totalRequests: deptRequests.length,
+      approvedRequests: deptRequests.filter(r => r.status === 'Approved').length,
+      averageDays: deptRequests.length > 0 ? 
+        (deptRequests.reduce((sum, r) => sum + r.days, 0) / deptRequests.length).toFixed(1) : "0"
+    };
+  });
+
+  // Top leave requesters
+  const staffRequestCounts = staff.map(member => {
+    const memberRequests = filteredRequests.filter(r => r.staffName === member.name);
+    return {
+      name: member.name,
+      department: member.department,
+      totalRequests: memberRequests.length,
+      totalDays: memberRequests.reduce((sum, r) => sum + r.days, 0),
+      approvedDays: memberRequests.filter(r => r.status === 'Approved').reduce((sum, r) => sum + r.days, 0)
+    };
+  }).sort((a, b) => b.totalDays - a.totalDays).slice(0, 10);
+
+  const exportToCSV = () => {
+    const headers = ['Staff Name', 'Department', 'Leave Type', 'Start Date', 'End Date', 'Days', 'Status', 'Applied Date'];
+    const csvContent = [
+      headers.join(','),
+      ...filteredRequests.map(request => [
+        request.staffName,
+        request.department || '',
+        request.type,
+        request.startDate,
+        request.endDate,
+        request.days,
+        request.status,
+        request.appliedDate
+      ].join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `leave-report-${selectedPeriod}-${selectedDepartment}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <Header />
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       <Header />
       
-      <main className="container mx-auto px-6 py-8">
+      <main className="flex-1 container mx-auto px-6 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-2">Reports & Analytics</h1>
-          <p className="text-muted-foreground">Analyze leave patterns and generate insights.</p>
+          <p className="text-muted-foreground">Comprehensive leave management insights and statistics</p>
         </div>
 
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-              <Select value={timeRange} onValueChange={setTimeRange}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Select time range" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="month">This Month</SelectItem>
-                  <SelectItem value="quarter">This Quarter</SelectItem>
-                  <SelectItem value="year">This Year</SelectItem>
-                  <SelectItem value="custom">Custom Range</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <Filter className="h-4 w-4 text-muted-foreground" />
-              <Select value={department} onValueChange={setDepartment}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Select department" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Departments</SelectItem>
-                  <SelectItem value="cs">Computer Science</SelectItem>
-                  <SelectItem value="math">Mathematics</SelectItem>
-                  <SelectItem value="physics">Physics</SelectItem>
-                  <SelectItem value="chemistry">Chemistry</SelectItem>
-                  <SelectItem value="biology">Biology</SelectItem>
-                  <SelectItem value="engineering">Engineering</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          
-          <div className="flex gap-3">
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => {
-                toast({
-                  title: "Data Refreshed",
-                  description: "Report data has been refreshed with the latest information.",
-                });
-              }}
-            >
-              <RefreshCcw className="h-4 w-4 mr-2" />
-              Refresh
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => {
-                toast({
-                  title: "Export Complete",
-                  description: "Reports have been exported successfully.",
-                });
-              }}
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Export
-            </Button>
-          </div>
-        </div>
-
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card className="p-6">
-            <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">Total Leave Requests</p>
-              <p className="text-3xl font-bold text-foreground">247</p>
-              <p className="text-xs text-success flex items-center">
-                <span className="mr-1">↑</span> 12% from previous period
-              </p>
-            </div>
-          </Card>
-          
-          <Card className="p-6">
-            <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">Average Processing Time</p>
-              <p className="text-3xl font-bold text-foreground">2.3 days</p>
-              <p className="text-xs text-success flex items-center">
-                <span className="mr-1">↓</span> 0.5 days improvement
-              </p>
-            </div>
-          </Card>
-          
-          <Card className="p-6">
-            <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">Approval Rate</p>
-              <p className="text-3xl font-bold text-foreground">92%</p>
-              <p className="text-xs text-success flex items-center">
-                <span className="mr-1">↑</span> 3% from previous period
-              </p>
-            </div>
-          </Card>
-          
-          <Card className="p-6">
-            <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">Staff Participation</p>
-              <p className="text-3xl font-bold text-foreground">78%</p>
-              <p className="text-xs text-success flex items-center">
-                <span className="mr-1">↑</span> 5% from previous period
-              </p>
-            </div>
-          </Card>
-        </div>
-
-        <Tabs defaultValue="overview" className="mb-8">
-          <TabsList className="mb-6">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="departments">By Department</TabsTrigger>
-            <TabsTrigger value="trends">Trends</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="overview">
-            <div className="grid md:grid-cols-2 gap-6">
-              <Card className="p-6">
-                <h3 className="text-lg font-semibold text-foreground mb-4">Leave Types Distribution</h3>
-                <div className="h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={leaveTypeData}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        outerRadius={80}
-                        fill="#8884d8"
-                        dataKey="value"
-                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                      >
-                        {leaveTypeData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                      <Legend />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              </Card>
-              
-              <Card className="p-6">
-                <h3 className="text-lg font-semibold text-foreground mb-4">Request Status</h3>
-                <div className="h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={statusData}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        outerRadius={80}
-                        fill="#8884d8"
-                        dataKey="value"
-                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                      >
-                        {statusData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={STATUS_COLORS[index % STATUS_COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                      <Legend />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              </Card>
-            </div>
-          </TabsContent>
-          
-          <TabsContent value="departments">
-            <div className="grid md:grid-cols-2 gap-6">
-              <Card className="p-6">
-                <h3 className="text-lg font-semibold text-foreground mb-4">Leave Requests by Department</h3>
-                <div className="h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={departmentData}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        outerRadius={80}
-                        fill="#8884d8"
-                        dataKey="value"
-                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                      >
-                        {departmentData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                      <Legend />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              </Card>
-              
-              <Card className="p-6">
-                <h3 className="text-lg font-semibold text-foreground mb-4">Department Comparison</h3>
-                <div className="h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={departmentData}
-                      margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" />
-                      <YAxis />
-                      <Tooltip />
-                      <Bar dataKey="value" fill="#8884d8" name="Leave Requests" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </Card>
-            </div>
-          </TabsContent>
-          
-          <TabsContent value="trends">
-            <Card className="p-6">
-              <h3 className="text-lg font-semibold text-foreground mb-4">Monthly Leave Trends</h3>
-              <div className="h-[400px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={monthlyData}
-                    margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="annual" stackId="a" fill="#8884d8" name="Annual Leave" />
-                    <Bar dataKey="sick" stackId="a" fill="#82ca9d" name="Sick Leave" />
-                    <Bar dataKey="personal" stackId="a" fill="#ffc658" name="Personal Leave" />
-                    <Bar dataKey="other" stackId="a" fill="#ff8042" name="Other" />
-                  </BarChart>
-                </ResponsiveContainer>
+        {/* Filters */}
+        <Card className="p-6 mb-8">
+          <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Select period" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="this-month">This Month</SelectItem>
+                    <SelectItem value="last-month">Last Month</SelectItem>
+                    <SelectItem value="this-year">This Year</SelectItem>
+                    <SelectItem value="last-year">Last Year</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-            </Card>
-          </TabsContent>
-        </Tabs>
+
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-muted-foreground" />
+                <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Select department" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Departments</SelectItem>
+                    {departments.map(dept => (
+                      <SelectItem key={dept} value={dept || ""}>{dept}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <Button onClick={exportToCSV} className="flex items-center gap-2">
+              <Download className="h-4 w-4" />
+              Export Report
+            </Button>
+          </div>
+        </Card>
+
+        {/* Key Metrics */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Requests</CardTitle>
+              <FileText className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{totalRequests}</div>
+              <p className="text-xs text-muted-foreground">
+                {approvedRequests} approved, {pendingRequests} pending
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Approval Rate</CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {totalRequests > 0 ? Math.round((approvedRequests / totalRequests) * 100) : 0}%
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {rejectedRequests} rejected requests
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Days</CardTitle>
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{totalDaysRequested}</div>
+              <p className="text-xs text-muted-foreground">
+                {averageDaysPerRequest} days average per request
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Active Staff</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{staff.length}</div>
+              <p className="text-xs text-muted-foreground">
+                Across {departments.length} departments
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Charts */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+          {/* Leave Types Distribution */}
+          <Card className="p-6">
+            <CardHeader>
+              <CardTitle>Leave Types Distribution</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={leaveTypesData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {leaveTypesData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Monthly Trends */}
+          <Card className="p-6">
+            <CardHeader>
+              <CardTitle>Monthly Leave Trends</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={monthlyData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" />
+                  <YAxis />
+                  <Tooltip />
+                  <Line type="monotone" dataKey="requests" stroke="#8884d8" name="Total Requests" />
+                  <Line type="monotone" dataKey="approved" stroke="#82ca9d" name="Approved" />
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Department Statistics */}
+        <Card className="p-6 mb-8">
+          <CardHeader>
+            <CardTitle>Department Statistics</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Department</TableHead>
+                    <TableHead>Total Staff</TableHead>
+                    <TableHead>Total Requests</TableHead>
+                    <TableHead>Approved Requests</TableHead>
+                    <TableHead>Average Days</TableHead>
+                    <TableHead>Approval Rate</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {departmentStats.map((dept) => (
+                    <TableRow key={dept.department}>
+                      <TableCell className="font-medium">{dept.department}</TableCell>
+                      <TableCell>{dept.totalStaff}</TableCell>
+                      <TableCell>{dept.totalRequests}</TableCell>
+                      <TableCell>{dept.approvedRequests}</TableCell>
+                      <TableCell>{dept.averageDays}</TableCell>
+                      <TableCell>
+                        {dept.totalRequests > 0 ? 
+                          Math.round((dept.approvedRequests / dept.totalRequests) * 100) : 0}%
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Top Leave Requesters */}
+        <Card className="p-6">
+          <CardHeader>
+            <CardTitle>Top Leave Requesters</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Staff Name</TableHead>
+                    <TableHead>Department</TableHead>
+                    <TableHead>Total Requests</TableHead>
+                    <TableHead>Total Days Requested</TableHead>
+                    <TableHead>Approved Days</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {staffRequestCounts.map((staff) => (
+                    <TableRow key={staff.name}>
+                      <TableCell className="font-medium">{staff.name}</TableCell>
+                      <TableCell>{staff.department || 'N/A'}</TableCell>
+                      <TableCell>{staff.totalRequests}</TableCell>
+                      <TableCell>{staff.totalDays}</TableCell>
+                      <TableCell>{staff.approvedDays}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
       </main>
 
       <Footer />

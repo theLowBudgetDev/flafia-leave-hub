@@ -24,16 +24,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 
-interface Notification {
-  id: number;
-  title: string;
-  message: string;
-  time: string;
-  unread: boolean;
-  link?: string;
-  type: "leave" | "system" | "alert";
-  relatedRequestId?: number;
-}
+import type { Notification } from "@/services/api";
 
 const Notifications = () => {
   const { toast } = useToast();
@@ -41,7 +32,6 @@ const Notifications = () => {
   const [activeTab, setActiveTab] = useState("all");
   const [loading, setLoading] = useState(true);
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
 
   useEffect(() => {
     fetchNotifications();
@@ -49,18 +39,10 @@ const Notifications = () => {
 
   const fetchNotifications = async () => {
     if (!user?.id) return;
-    
     try {
       setLoading(true);
-      
-      // Fetch user's leave requests to generate notifications
-      const requests = await api.getLeaveRequests(user.id);
-      setLeaveRequests(requests);
-      
-      // Generate notifications based on leave requests and system events
-      const generatedNotifications = generateNotifications(requests);
-      setNotifications(generatedNotifications);
-      
+      const notifs = await api.getNotifications(user.id);
+      setNotifications(notifs);
     } catch (error) {
       console.error("Error fetching notifications:", error);
       toast({
@@ -71,140 +53,6 @@ const Notifications = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const generateNotifications = (requests: LeaveRequest[]): Notification[] => {
-    const notifications: Notification[] = [];
-    let notificationId = 1;
-
-    // Generate notifications for leave request status changes
-    requests.forEach((request) => {
-      if (request.status === 'Approved' && request.approvedDate) {
-        const approvedDate = new Date(request.approvedDate);
-        const daysSinceApproval = Math.floor((Date.now() - approvedDate.getTime()) / (1000 * 60 * 60 * 24));
-        
-        notifications.push({
-          id: notificationId++,
-          title: "Leave Request Approved",
-          message: `Your ${request.type.toLowerCase()} request for ${request.days} day${request.days > 1 ? 's' : ''} has been approved`,
-          time: getRelativeTime(request.approvedDate),
-          unread: daysSinceApproval <= 1,
-          link: "/history",
-          type: "leave",
-          relatedRequestId: request.id
-        });
-      }
-      
-      if (request.status === 'Rejected' && request.approvedDate) {
-        const rejectedDate = new Date(request.approvedDate);
-        const daysSinceRejection = Math.floor((Date.now() - rejectedDate.getTime()) / (1000 * 60 * 60 * 24));
-        
-        notifications.push({
-          id: notificationId++,
-          title: "Leave Request Rejected",
-          message: `Your ${request.type.toLowerCase()} request has been rejected${request.rejectedReason ? `: ${request.rejectedReason}` : ''}`,
-          time: getRelativeTime(request.approvedDate),
-          unread: daysSinceRejection <= 1,
-          link: "/history",
-          type: "alert",
-          relatedRequestId: request.id
-        });
-      }
-      
-      if (request.status === 'Pending') {
-        const appliedDate = new Date(request.appliedDate);
-        const daysSinceApplication = Math.floor((Date.now() - appliedDate.getTime()) / (1000 * 60 * 60 * 24));
-        
-        if (daysSinceApplication === 0) {
-          notifications.push({
-            id: notificationId++,
-            title: "Leave Request Submitted",
-            message: `Your ${request.type.toLowerCase()} request has been submitted and is pending approval`,
-            time: getRelativeTime(request.appliedDate),
-            unread: true,
-            link: "/history",
-            type: "leave",
-            relatedRequestId: request.id
-          });
-        }
-      }
-    });
-
-    // Add system notifications
-    const systemNotifications: Notification[] = [
-      {
-        id: notificationId++,
-        title: "Leave Balance Updated",
-        message: "Your annual leave balance has been updated for the new year",
-        time: "1 week ago",
-        unread: false,
-        link: "/profile",
-        type: "system"
-      },
-      {
-        id: notificationId++,
-        title: "System Maintenance",
-        message: "Scheduled maintenance will occur this weekend from 2:00 AM to 4:00 AM",
-        time: "3 days ago",
-        unread: false,
-        type: "alert"
-      },
-      {
-        id: notificationId++,
-        title: "New Leave Policy",
-        message: "Updated leave policy guidelines are now available in the employee handbook",
-        time: "1 week ago",
-        unread: false,
-        link: "/about",
-        type: "system"
-      }
-    ];
-
-    // Add upcoming leave reminders
-    const upcomingLeave = requests.filter(request => {
-      if (request.status !== 'Approved') return false;
-      const startDate = new Date(request.startDate);
-      const today = new Date();
-      const daysUntilLeave = Math.ceil((startDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-      return daysUntilLeave > 0 && daysUntilLeave <= 7;
-    });
-
-    upcomingLeave.forEach(request => {
-      const startDate = new Date(request.startDate);
-      const daysUntilLeave = Math.ceil((startDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-      
-      notifications.push({
-        id: notificationId++,
-        title: "Upcoming Leave Reminder",
-        message: `Your ${request.type.toLowerCase()} starts in ${daysUntilLeave} day${daysUntilLeave > 1 ? 's' : ''}`,
-        time: "Today",
-        unread: true,
-        link: "/calendar",
-        type: "leave",
-        relatedRequestId: request.id
-      });
-    });
-
-    // Combine and sort notifications by recency
-    const allNotifications = [...notifications, ...systemNotifications];
-    
-    return allNotifications.sort((a, b) => {
-      // Sort by unread status first, then by time
-      if (a.unread && !b.unread) return -1;
-      if (!a.unread && b.unread) return 1;
-      
-      // For time sorting, we'll use a simple heuristic based on the time string
-      const timeToMinutes = (timeStr: string) => {
-        if (timeStr.includes('minute')) return parseInt(timeStr) || 0;
-        if (timeStr.includes('hour')) return (parseInt(timeStr) || 0) * 60;
-        if (timeStr.includes('day')) return (parseInt(timeStr) || 0) * 1440;
-        if (timeStr.includes('week')) return (parseInt(timeStr) || 0) * 10080;
-        if (timeStr === 'Today' || timeStr === 'Just now') return 0;
-        return 999999; // Very old
-      };
-      
-      return timeToMinutes(a.time) - timeToMinutes(b.time);
-    });
   };
 
   const getRelativeTime = (dateString: string) => {
@@ -251,7 +99,7 @@ const Notifications = () => {
     }
   };
 
-  const markAsRead = (notificationId: number) => {
+  const markAsRead = (notificationId: string) => {
     setNotifications(prev => 
       prev.map(notification => 
         notification.id === notificationId 
@@ -261,7 +109,7 @@ const Notifications = () => {
     );
   };
 
-  const markAsUnread = (notificationId: number) => {
+  const markAsUnread = (notificationId: string) => {
     setNotifications(prev => 
       prev.map(notification => 
         notification.id === notificationId 
@@ -271,7 +119,7 @@ const Notifications = () => {
     );
   };
 
-  const deleteNotification = (notificationId: number) => {
+  const deleteNotification = (notificationId: string) => {
     setNotifications(prev => prev.filter(n => n.id !== notificationId));
     toast({
       title: "Notification deleted",

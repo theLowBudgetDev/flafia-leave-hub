@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Bell, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,6 +13,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { api, LeaveRequest } from "@/services/api";
 
 type Notification = {
   id: number;
@@ -21,36 +23,144 @@ type Notification = {
   time: string;
   unread: boolean;
   link?: string;
+  type?: "leave" | "system" | "alert";
+  relatedRequestId?: number;
 };
 
 export const NotificationDropdown = () => {
   const { toast } = useToast();
-  const [notifications, setNotifications] = useState<Notification[]>([
-    {
-      id: 1,
-      title: "Leave Request Approved",
-      message: "Your annual leave request has been approved",
-      time: "2 minutes ago",
-      unread: true,
-      link: "/history"
-    },
-    {
-      id: 2,
-      title: "New Leave Policy",
-      message: "Updated leave policy is now available",
-      time: "1 hour ago",
-      unread: true,
-      link: "/about"
-    },
-    {
-      id: 3,
-      title: "Leave Balance Updated",
-      message: "Your leave balance has been updated",
-      time: "2 days ago",
-      unread: false,
-      link: "/dashboard"
-    },
-  ]);
+  const { user } = useAuth();
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (user?.id) {
+      fetchNotifications();
+    }
+  }, [user]);
+
+  const fetchNotifications = async () => {
+    if (!user?.id) return;
+    
+    try {
+      setLoading(true);
+      const requests = await api.getLeaveRequests(user.id);
+      const generatedNotifications = generateNotifications(requests);
+      setNotifications(generatedNotifications.slice(0, 5)); // Show only recent 5 notifications
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const generateNotifications = (requests: LeaveRequest[]): Notification[] => {
+    const notifications: Notification[] = [];
+    let notificationId = 1;
+
+    // Generate notifications for leave request status changes
+    requests.forEach((request) => {
+      if (request.status === 'Approved' && request.approvedDate) {
+        const approvedDate = new Date(request.approvedDate);
+        const daysSinceApproval = Math.floor((Date.now() - approvedDate.getTime()) / (1000 * 60 * 60 * 24));
+        
+        notifications.push({
+          id: notificationId++,
+          title: "Leave Request Approved",
+          message: `Your ${request.type.toLowerCase()} request for ${request.days} day${request.days > 1 ? 's' : ''} has been approved`,
+          time: getRelativeTime(request.approvedDate),
+          unread: daysSinceApproval <= 1,
+          link: "/history",
+          type: "leave",
+          relatedRequestId: request.id
+        });
+      }
+      
+      if (request.status === 'Rejected' && request.approvedDate) {
+        const rejectedDate = new Date(request.approvedDate);
+        const daysSinceRejection = Math.floor((Date.now() - rejectedDate.getTime()) / (1000 * 60 * 60 * 24));
+        
+        notifications.push({
+          id: notificationId++,
+          title: "Leave Request Rejected",
+          message: `Your ${request.type.toLowerCase()} request has been rejected${request.rejectedReason ? `: ${request.rejectedReason}` : ''}`,
+          time: getRelativeTime(request.approvedDate),
+          unread: daysSinceRejection <= 1,
+          link: "/history",
+          type: "alert",
+          relatedRequestId: request.id
+        });
+      }
+      
+      if (request.status === 'Pending') {
+        const appliedDate = new Date(request.appliedDate);
+        const daysSinceApplication = Math.floor((Date.now() - appliedDate.getTime()) / (1000 * 60 * 60 * 24));
+        
+        if (daysSinceApplication === 0) {
+          notifications.push({
+            id: notificationId++,
+            title: "Leave Request Submitted",
+            message: `Your ${request.type.toLowerCase()} request has been submitted and is pending approval`,
+            time: getRelativeTime(request.appliedDate),
+            unread: true,
+            link: "/history",
+            type: "leave",
+            relatedRequestId: request.id
+          });
+        }
+      }
+    });
+
+    // Add upcoming leave reminders
+    const upcomingLeave = requests.filter(request => {
+      if (request.status !== 'Approved') return false;
+      const startDate = new Date(request.startDate);
+      const today = new Date();
+      const daysUntilLeave = Math.ceil((startDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      return daysUntilLeave > 0 && daysUntilLeave <= 7;
+    });
+
+    upcomingLeave.forEach(request => {
+      const startDate = new Date(request.startDate);
+      const daysUntilLeave = Math.ceil((startDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+      
+      notifications.push({
+        id: notificationId++,
+        title: "Upcoming Leave Reminder",
+        message: `Your ${request.type.toLowerCase()} starts in ${daysUntilLeave} day${daysUntilLeave > 1 ? 's' : ''}`,
+        time: "Today",
+        unread: true,
+        link: "/calendar",
+        type: "leave",
+        relatedRequestId: request.id
+      });
+    });
+
+    // Sort by unread status first, then by time
+    return notifications.sort((a, b) => {
+      if (a.unread && !b.unread) return -1;
+      if (!a.unread && b.unread) return 1;
+      return 0;
+    });
+  };
+
+  const getRelativeTime = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
+    
+    if (diffInMinutes < 1) return "Just now";
+    if (diffInMinutes < 60) return `${diffInMinutes} minute${diffInMinutes > 1 ? 's' : ''} ago`;
+    
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    if (diffInHours < 24) return `${diffInHours} hour${diffInHours > 1 ? 's' : ''} ago`;
+    
+    const diffInDays = Math.floor(diffInHours / 24);
+    if (diffInDays < 7) return `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`;
+    
+    const diffInWeeks = Math.floor(diffInDays / 7);
+    return `${diffInWeeks} week${diffInWeeks > 1 ? 's' : ''} ago`;
+  };
 
   const unreadCount = notifications.filter(n => n.unread).length;
 

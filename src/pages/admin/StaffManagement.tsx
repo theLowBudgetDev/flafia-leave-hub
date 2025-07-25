@@ -1,9 +1,16 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
 import { 
   Table, 
   TableBody, 
@@ -19,681 +26,494 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { 
   Search, 
   Plus, 
-  Eye, 
   Edit, 
   Trash2, 
-  Save,
-  Loader2,
-  AlertTriangle
+  Download,
+  UserPlus,
+  Loader2
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-
-interface Staff {
-  id: string;
-  name: string;
-  email: string;
-  department: string;
-  position: string;
-  joinDate: string;
-  status: "active" | "inactive";
-}
+import { api, Staff } from "@/services/api";
 
 const StaffManagement = () => {
   const { toast } = useToast();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [staff, setStaff] = useState<Staff[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [departmentFilter, setDepartmentFilter] = useState("all");
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
-  
-  // Form state for adding/editing staff
+  const [actionLoading, setActionLoading] = useState(false);
+
+  // Form state
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     department: "",
     position: "",
-    status: "active" as "active" | "inactive"
+    phone: "",
+    annualLeave: 21,
+    sickLeave: 10,
+    maternityLeave: 90,
+    paternityLeave: 7,
+    emergencyLeave: 3
   });
-  
-  // Mock staff data
-  const [staffList, setStaffList] = useState<Staff[]>([
-    {
-      id: "staff-1",
-      name: "Dr. Sarah Johnson",
-      email: "sarah.johnson@fulafia.edu.ng",
-      department: "Computer Science",
-      position: "Senior Lecturer",
-      joinDate: "2020-01-15",
-      status: "active"
-    },
-    {
-      id: "staff-2",
-      name: "Prof. Michael Adams",
-      email: "michael.adams@fulafia.edu.ng",
-      department: "Mathematics",
-      position: "Professor",
-      joinDate: "2015-03-22",
-      status: "active"
-    },
-    {
-      id: "staff-3",
-      name: "Dr. Fatima Ali",
-      email: "fatima.ali@fulafia.edu.ng",
-      department: "Physics",
-      position: "Associate Professor",
-      joinDate: "2018-09-10",
-      status: "active"
-    },
-    {
-      id: "staff-4",
-      name: "Dr. James Wilson",
-      email: "james.wilson@fulafia.edu.ng",
-      department: "Chemistry",
-      position: "Lecturer",
-      joinDate: "2019-05-05",
-      status: "inactive"
-    },
-    {
-      id: "staff-5",
-      name: "Prof. Lisa Chen",
-      email: "lisa.chen@fulafia.edu.ng",
-      department: "Biology",
-      position: "Professor",
-      joinDate: "2012-11-30",
-      status: "active"
+
+  useEffect(() => {
+    fetchStaff();
+  }, []);
+
+  const fetchStaff = async () => {
+    try {
+      setLoading(true);
+      const staffData = await api.getStaffMembers();
+      setStaff(staffData);
+    } catch (error) {
+      console.error("Error fetching staff:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load staff data",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
-  ]);
-
-  // Filter staff based on search query
-  const filteredStaff = staffList.filter(staff => {
-    if (!searchQuery) return true;
-    
-    const query = searchQuery.toLowerCase();
-    return (
-      staff.name.toLowerCase().includes(query) ||
-      staff.email.toLowerCase().includes(query) ||
-      staff.department.toLowerCase().includes(query) ||
-      staff.position.toLowerCase().includes(query)
-    );
-  });
-
-  const handleViewStaff = (staff: Staff) => {
-    setSelectedStaff(staff);
-    setIsViewDialogOpen(true);
   };
 
-  const handleEditStaff = (staff: Staff) => {
-    setSelectedStaff(staff);
-    setFormData({
-      name: staff.name,
-      email: staff.email,
-      department: staff.department,
-      position: staff.position,
-      status: staff.status
-    });
-    setIsEditDialogOpen(true);
+  const handleAddStaff = async () => {
+    try {
+      setActionLoading(true);
+      const newStaff = await api.createStaff({
+  ...formData,
+  totalLeave:
+    formData.annualLeave +
+    formData.sickLeave +
+    formData.maternityLeave +
+    formData.paternityLeave +
+    formData.emergencyLeave,
+});
+      setStaff([...staff, newStaff]);
+      setShowAddDialog(false);
+      resetForm();
+      toast({
+        title: "Staff Added",
+        description: "New staff member has been added successfully.",
+      });
+    } catch (error) {
+      console.error("Error adding staff:", error);
+      toast({
+        title: "Error",
+        description: "Failed to add staff member",
+        variant: "destructive",
+      });
+    } finally {
+      setActionLoading(false);
+    }
   };
 
-  const handleDeleteStaff = (staff: Staff) => {
-    setSelectedStaff(staff);
-    setIsDeleteDialogOpen(true);
+  const handleEditStaff = async () => {
+    if (!selectedStaff) return;
+
+    try {
+      setActionLoading(true);
+      const updatedStaff = await api.updateStaff(selectedStaff.id, formData);
+      setStaff(staff.map(s => s.id === selectedStaff.id ? updatedStaff : s));
+      setShowEditDialog(false);
+      setSelectedStaff(null);
+      resetForm();
+      toast({
+        title: "Staff Updated",
+        description: "Staff member has been updated successfully.",
+      });
+    } catch (error) {
+      console.error("Error updating staff:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update staff member",
+        variant: "destructive",
+      });
+    } finally {
+      setActionLoading(false);
+    }
   };
 
-  const handleAddStaff = () => {
+  const handleDeleteStaff = async (staffMember: Staff) => {
+    if (!confirm(`Are you sure you want to delete ${staffMember.name}?`)) return;
+
+    try {
+      await api.deleteStaff(staffMember.id);
+      setStaff(staff.filter(s => s.id !== staffMember.id));
+      toast({
+        title: "Staff Deleted",
+        description: "Staff member has been deleted successfully.",
+      });
+    } catch (error) {
+      console.error("Error deleting staff:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete staff member",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const resetForm = () => {
     setFormData({
       name: "",
       email: "",
       department: "",
       position: "",
-      status: "active"
+      phone: "",
+      annualLeave: 21,
+      sickLeave: 10,
+      maternityLeave: 90,
+      paternityLeave: 7,
+      emergencyLeave: 3
     });
-    setIsAddDialogOpen(true);
   };
 
-  const handleSaveNewStaff = () => {
-    setIsProcessing(true);
-    
-    // Validate form
-    if (!formData.name || !formData.email || !formData.department || !formData.position) {
-      toast({
-        title: "Validation Error",
-        description: "Please fill in all required fields.",
-        variant: "destructive",
-      });
-      setIsProcessing(false);
-      return;
-    }
-    
-    // Simulate API call
-    setTimeout(() => {
-      const newStaff: Staff = {
-        id: `staff-${staffList.length + 1}`,
-        name: formData.name,
-        email: formData.email,
-        department: formData.department,
-        position: formData.position,
-        joinDate: new Date().toISOString().split('T')[0],
-        status: formData.status
-      };
-      
-      setStaffList([...staffList, newStaff]);
-      
-      toast({
-        title: "Staff Added",
-        description: "New staff member has been added successfully.",
-      });
-      
-      setIsProcessing(false);
-      setIsAddDialogOpen(false);
-    }, 1000);
+  const openEditDialog = (staffMember: Staff) => {
+    setSelectedStaff(staffMember);
+    setFormData({
+      name: staffMember.name,
+      email: staffMember.email,
+      department: staffMember.department || "",
+      position: staffMember.position || "",
+      phone: staffMember.phone || "",
+      annualLeave: staffMember.annualLeave || 21,
+      sickLeave: staffMember.sickLeave || 10,
+      maternityLeave: staffMember.maternityLeave || 90,
+      paternityLeave: staffMember.paternityLeave || 7,
+      emergencyLeave: staffMember.emergencyLeave || 3
+    });
+    setShowEditDialog(true);
   };
 
-  const handleUpdateStaff = () => {
-    if (!selectedStaff) return;
+  const filteredStaff = staff.filter(member => {
+    const matchesSearch = member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         member.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (member.department?.toLowerCase().includes(searchTerm.toLowerCase()) || false);
     
-    setIsProcessing(true);
+    const matchesDepartment = departmentFilter === "all" || member.department === departmentFilter;
     
-    // Validate form
-    if (!formData.name || !formData.email || !formData.department || !formData.position) {
-      toast({
-        title: "Validation Error",
-        description: "Please fill in all required fields.",
-        variant: "destructive",
-      });
-      setIsProcessing(false);
-      return;
-    }
-    
-    // Simulate API call
-    setTimeout(() => {
-      setStaffList(staffList.map(staff => 
-        staff.id === selectedStaff.id
-          ? { ...staff, ...formData }
-          : staff
-      ));
-      
-      toast({
-        title: "Staff Updated",
-        description: "Staff information has been updated successfully.",
-      });
-      
-      setIsProcessing(false);
-      setIsEditDialogOpen(false);
-    }, 1000);
+    return matchesSearch && matchesDepartment;
+  });
+
+  const departments = Array.from(new Set(staff.map(s => s.department).filter(Boolean)));
+
+  const exportToCSV = () => {
+    const headers = ['Name', 'Email', 'Department', 'Position', 'Phone', 'Annual Leave', 'Sick Leave'];
+    const csvContent = [
+      headers.join(','),
+      ...filteredStaff.map(member => [
+        member.name,
+        member.email,
+        member.department || '',
+        member.position || '',
+        member.phone || '',
+        member.annualLeave || 21,
+        member.sickLeave || 10
+      ].join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'staff-list.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
   };
 
-  const handleConfirmDelete = () => {
-    if (!selectedStaff) return;
-    
-    setIsProcessing(true);
-    
-    // Simulate API call
-    setTimeout(() => {
-      setStaffList(staffList.filter(staff => staff.id !== selectedStaff.id));
-      
-      toast({
-        title: "Staff Removed",
-        description: "Staff member has been removed successfully.",
-      });
-      
-      setIsProcessing(false);
-      setIsDeleteDialogOpen(false);
-    }, 1000);
-  };
-
-  const formatDate = (dateString: string) => {
-    const options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'long', day: 'numeric' };
-    return new Date(dateString).toLocaleDateString(undefined, options);
-  };
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <Header />
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       <Header />
       
-      <main className="container mx-auto px-6 py-8">
+      <main className="flex-1 container mx-auto px-6 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-2">Staff Management</h1>
-          <p className="text-muted-foreground">Manage staff records and information</p>
+          <p className="text-muted-foreground">Manage staff members and their leave balances</p>
         </div>
 
         <Card className="p-6">
-          <div className="flex flex-col sm:flex-row justify-between gap-4 mb-6">
-            <div className="relative w-full sm:w-64">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search staff..."
-                className="pl-10"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-            
-            <Button onClick={handleAddStaff}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Staff
-            </Button>
-          </div>
-          
-          {filteredStaff.length > 0 ? (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Department</TableHead>
-                    <TableHead>Position</TableHead>
-                    <TableHead>Join Date</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredStaff.map((staff) => (
-                    <TableRow key={staff.id}>
-                      <TableCell className="font-medium">{staff.name}</TableCell>
-                      <TableCell>{staff.email}</TableCell>
-                      <TableCell>{staff.department}</TableCell>
-                      <TableCell>{staff.position}</TableCell>
-                      <TableCell>{formatDate(staff.joinDate)}</TableCell>
-                      <TableCell>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          staff.status === "active" 
-                            ? "bg-success/20 text-success" 
-                            : "bg-muted text-muted-foreground"
-                        }`}>
-                          {staff.status === "active" ? "Active" : "Inactive"}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={() => handleViewStaff(staff)}
-                          >
-                            <Eye className="h-4 w-4" />
-                            <span className="sr-only">View</span>
-                          </Button>
-                          
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={() => handleEditStaff(staff)}
-                          >
-                            <Edit className="h-4 w-4" />
-                            <span className="sr-only">Edit</span>
-                          </Button>
-                          
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={() => handleDeleteStaff(staff)}
-                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            <span className="sr-only">Delete</span>
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
+          {/* Header Actions */}
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+            <div className="flex flex-col md:flex-row gap-4 flex-1">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Input
+                  placeholder="Search staff by name, email, or department..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              
+              <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+                <SelectTrigger className="w-full md:w-48">
+                  <SelectValue placeholder="Filter by department" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Departments</SelectItem>
+                  {departments.map(dept => (
+                    <SelectItem key={dept} value={dept || ""}>{dept}</SelectItem>
                   ))}
-                </TableBody>
-              </Table>
+                </SelectContent>
+              </Select>
             </div>
-          ) : (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground mb-2">No staff found</p>
-              <p className="text-sm text-muted-foreground">
-                {searchQuery 
-                  ? "Try adjusting your search to find more results" 
-                  : "Add staff members to get started"}
-              </p>
+
+            <div className="flex gap-2">
+              <Button onClick={exportToCSV} variant="outline" className="flex items-center gap-2">
+                <Download className="h-4 w-4" />
+                Export
+              </Button>
+              
+              <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+                <DialogTrigger asChild>
+                  <Button className="flex items-center gap-2">
+                    <UserPlus className="h-4 w-4" />
+                    Add Staff
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Add New Staff Member</DialogTitle>
+                    <DialogDescription>
+                      Enter the details for the new staff member.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="name">Full Name</Label>
+                      <Input
+                        id="name"
+                        value={formData.name}
+                        onChange={(e) => setFormData({...formData, name: e.target.value})}
+                        placeholder="Enter full name"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="email">Email</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        value={formData.email}
+                        onChange={(e) => setFormData({...formData, email: e.target.value})}
+                        placeholder="Enter email address"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="department">Department</Label>
+                      <Input
+                        id="department"
+                        value={formData.department}
+                        onChange={(e) => setFormData({...formData, department: e.target.value})}
+                        placeholder="Enter department"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="position">Position</Label>
+                      <Input
+                        id="position"
+                        value={formData.position}
+                        onChange={(e) => setFormData({...formData, position: e.target.value})}
+                        placeholder="Enter position"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="phone">Phone</Label>
+                      <Input
+                        id="phone"
+                        value={formData.phone}
+                        onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                        placeholder="Enter phone number"
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setShowAddDialog(false)}>
+                      Cancel
+                    </Button>
+                    <Button onClick={handleAddStaff} disabled={actionLoading}>
+                      {actionLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                      Add Staff
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </div>
-          )}
+          </div>
+
+          {/* Results Summary */}
+          <div className="mb-4">
+            <p className="text-sm text-muted-foreground">
+              Showing {filteredStaff.length} of {staff.length} staff members
+            </p>
+          </div>
+
+          {/* Staff Table */}
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Department</TableHead>
+                  <TableHead>Position</TableHead>
+                  <TableHead>Phone</TableHead>
+                  <TableHead>Annual Leave</TableHead>
+                  <TableHead>Sick Leave</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredStaff.map((member) => (
+                  <TableRow key={member.id}>
+                    <TableCell className="font-medium">{member.name}</TableCell>
+                    <TableCell>{member.email}</TableCell>
+                    <TableCell>{member.department || 'N/A'}</TableCell>
+                    <TableCell>{member.position || 'N/A'}</TableCell>
+                    <TableCell>{member.phone || 'N/A'}</TableCell>
+                    <TableCell>{member.annualLeave || 21} days</TableCell>
+                    <TableCell>{member.sickLeave || 10} days</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openEditDialog(member)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteStaff(member)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </Card>
       </main>
 
       <Footer />
-      
-      {/* View Staff Dialog */}
-      {selectedStaff && (
-        <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Staff Details</DialogTitle>
-              <DialogDescription>
-                View detailed information about this staff member
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Name</p>
-                  <p className="font-medium">{selectedStaff.name}</p>
-                </div>
-                
-                <div>
-                  <p className="text-sm text-muted-foreground">Email</p>
-                  <p className="font-medium">{selectedStaff.email}</p>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Department</p>
-                  <p className="font-medium">{selectedStaff.department}</p>
-                </div>
-                
-                <div>
-                  <p className="text-sm text-muted-foreground">Position</p>
-                  <p className="font-medium">{selectedStaff.position}</p>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Join Date</p>
-                  <p className="font-medium">{formatDate(selectedStaff.joinDate)}</p>
-                </div>
-                
-                <div>
-                  <p className="text-sm text-muted-foreground">Status</p>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    selectedStaff.status === "active" 
-                      ? "bg-success/20 text-success" 
-                      : "bg-muted text-muted-foreground"
-                  }`}>
-                    {selectedStaff.status === "active" ? "Active" : "Inactive"}
-                  </span>
-                </div>
-              </div>
-            </div>
-            
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>
-                Close
-              </Button>
-              <Button onClick={() => {
-                setIsViewDialogOpen(false);
-                handleEditStaff(selectedStaff);
-              }}>
-                <Edit className="h-4 w-4 mr-2" />
-                Edit
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
-      
-      {/* Add Staff Dialog */}
-      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+
+      {/* Edit Staff Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Add New Staff</DialogTitle>
+            <DialogTitle>Edit Staff Member</DialogTitle>
             <DialogDescription>
-              Enter the details for the new staff member
+              Update the details for {selectedStaff?.name}.
             </DialogDescription>
           </DialogHeader>
-          
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Full Name *</Label>
-                <Input 
-                  id="name" 
-                  value={formData.name} 
-                  onChange={(e) => setFormData({...formData, name: e.target.value})}
-                  disabled={isProcessing}
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="email">Email Address *</Label>
-                <Input 
-                  id="email" 
-                  type="email" 
-                  value={formData.email} 
-                  onChange={(e) => setFormData({...formData, email: e.target.value})}
-                  disabled={isProcessing}
-                />
-              </div>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="edit-name">Full Name</Label>
+              <Input
+                id="edit-name"
+                value={formData.name}
+                onChange={(e) => setFormData({...formData, name: e.target.value})}
+                placeholder="Enter full name"
+              />
             </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="department">Department *</Label>
-                <Input 
-                  id="department" 
-                  value={formData.department} 
-                  onChange={(e) => setFormData({...formData, department: e.target.value})}
-                  disabled={isProcessing}
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="position">Position *</Label>
-                <Input 
-                  id="position" 
-                  value={formData.position} 
-                  onChange={(e) => setFormData({...formData, position: e.target.value})}
-                  disabled={isProcessing}
-                />
-              </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-email">Email</Label>
+              <Input
+                id="edit-email"
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({...formData, email: e.target.value})}
+                placeholder="Enter email address"
+              />
             </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="status">Status</Label>
-              <Select 
-                value={formData.status} 
-                onValueChange={(value: "active" | "inactive") => setFormData({...formData, status: value})}
-                disabled={isProcessing}
-              >
-                <SelectTrigger id="status">
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-department">Department</Label>
+              <Input
+                id="edit-department"
+                value={formData.department}
+                onChange={(e) => setFormData({...formData, department: e.target.value})}
+                placeholder="Enter department"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-position">Position</Label>
+              <Input
+                id="edit-position"
+                value={formData.position}
+                onChange={(e) => setFormData({...formData, position: e.target.value})}
+                placeholder="Enter position"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-phone">Phone</Label>
+              <Input
+                id="edit-phone"
+                value={formData.phone}
+                onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                placeholder="Enter phone number"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="edit-annual">Annual Leave</Label>
+                <Input
+                  id="edit-annual"
+                  type="number"
+                  value={formData.annualLeave}
+                  onChange={(e) => setFormData({...formData, annualLeave: parseInt(e.target.value) || 0})}
+                  placeholder="21"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-sick">Sick Leave</Label>
+                <Input
+                  id="edit-sick"
+                  type="number"
+                  value={formData.sickLeave}
+                  onChange={(e) => setFormData({...formData, sickLeave: parseInt(e.target.value) || 0})}
+                  placeholder="10"
+                />
+              </div>
             </div>
           </div>
-          
           <DialogFooter>
-            <Button 
-              variant="outline" 
-              onClick={() => setIsAddDialogOpen(false)}
-              disabled={isProcessing}
-            >
+            <Button variant="outline" onClick={() => setShowEditDialog(false)}>
               Cancel
             </Button>
-            <Button 
-              onClick={handleSaveNewStaff}
-              disabled={isProcessing}
-            >
-              {isProcessing ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Save className="h-4 w-4 mr-2" />
-                  Save
-                </>
-              )}
+            <Button onClick={handleEditStaff} disabled={actionLoading}>
+              {actionLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Update Staff
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      
-      {/* Edit Staff Dialog */}
-      {selectedStaff && (
-        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Edit Staff</DialogTitle>
-              <DialogDescription>
-                Update information for {selectedStaff.name}
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="edit-name">Full Name *</Label>
-                  <Input 
-                    id="edit-name" 
-                    value={formData.name} 
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
-                    disabled={isProcessing}
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="edit-email">Email Address *</Label>
-                  <Input 
-                    id="edit-email" 
-                    type="email" 
-                    value={formData.email} 
-                    onChange={(e) => setFormData({...formData, email: e.target.value})}
-                    disabled={isProcessing}
-                  />
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="edit-department">Department *</Label>
-                  <Input 
-                    id="edit-department" 
-                    value={formData.department} 
-                    onChange={(e) => setFormData({...formData, department: e.target.value})}
-                    disabled={isProcessing}
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="edit-position">Position *</Label>
-                  <Input 
-                    id="edit-position" 
-                    value={formData.position} 
-                    onChange={(e) => setFormData({...formData, position: e.target.value})}
-                    disabled={isProcessing}
-                  />
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="edit-status">Status</Label>
-                <Select 
-                  value={formData.status} 
-                  onValueChange={(value: "active" | "inactive") => setFormData({...formData, status: value})}
-                  disabled={isProcessing}
-                >
-                  <SelectTrigger id="edit-status">
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            
-            <DialogFooter>
-              <Button 
-                variant="outline" 
-                onClick={() => setIsEditDialogOpen(false)}
-                disabled={isProcessing}
-              >
-                Cancel
-              </Button>
-              <Button 
-                onClick={handleUpdateStaff}
-                disabled={isProcessing}
-              >
-                {isProcessing ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Updating...
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-4 w-4 mr-2" />
-                    Update
-                  </>
-                )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
-      
-      {/* Delete Confirmation Dialog */}
-      {selectedStaff && (
-        <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Confirm Deletion</DialogTitle>
-              <DialogDescription>
-                Are you sure you want to remove this staff member? This action cannot be undone.
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg flex items-start gap-3">
-              <AlertTriangle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="font-medium text-destructive">Warning</p>
-                <p className="text-sm text-muted-foreground">
-                  Removing {selectedStaff.name} will delete all associated records including leave history.
-                </p>
-              </div>
-            </div>
-            
-            <DialogFooter>
-              <Button 
-                variant="outline" 
-                onClick={() => setIsDeleteDialogOpen(false)}
-                disabled={isProcessing}
-              >
-                Cancel
-              </Button>
-              <Button 
-                variant="destructive" 
-                onClick={handleConfirmDelete}
-                disabled={isProcessing}
-              >
-                {isProcessing ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Deleting...
-                  </>
-                ) : (
-                  "Delete Staff"
-                )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
     </div>
   );
 };

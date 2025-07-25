@@ -28,9 +28,61 @@ export interface Staff {
   totalLeave: number;
   usedLeave: number;
   pendingLeave: number;
+  phone: string;
+  annualLeave: number;
+  sickLeave: number;
+  maternityLeave: number;
+  paternityLeave: number;
+  emergencyLeave: number;
 }
 
+export interface Notification {
+  id: string;
+  staffId: string;
+  type: string;
+  message: string;
+  createdAt: string;
+  read: boolean;
+  // Rich notification fields for frontend
+  title?: string;
+  time?: string;
+  unread?: boolean;
+  link?: string;
+  relatedRequestId?: number;
+}
+
+export interface Settings {
+  staffId: string;
+  emailNotifications: boolean;
+  pushNotifications: boolean;
+  leaveUpdates: boolean;
+  systemAlerts: boolean;
+}
+
+
 export const api = {
+  getNotifications: async (staffId: string): Promise<Notification[]> => {
+    const response = await fetch(`${API_BASE_URL}/notifications?staffId=${staffId}`);
+    if (!response.ok) throw new Error('Failed to fetch notifications');
+    return response.json();
+  },
+
+  getSettings: async (staffId: string): Promise<Settings> => {
+    const response = await fetch(`${API_BASE_URL}/settings?staffId=${staffId}`);
+    if (!response.ok) throw new Error('Failed to fetch settings');
+    return response.json();
+  },
+
+  saveSettings: async (settings: Settings): Promise<Settings> => {
+    const response = await fetch(`${API_BASE_URL}/settings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(settings),
+    });
+    if (!response.ok) throw new Error('Failed to save settings');
+    return response.json();
+  },
+
   login: async (email: string, password: string) => {
     // Implement login API call if needed
     return { success: true };
@@ -124,5 +176,67 @@ export const api = {
       pendingLeave: staff.pendingLeave,
       remainingLeave: staff.totalLeave - staff.usedLeave
     };
+  },
+
+  createStaff: async (staffData: Omit<Staff, 'id' | 'usedLeave' | 'pendingLeave'>): Promise<Staff> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/staff`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...staffData,
+          usedLeave: 0,
+          pendingLeave: 0
+        }),
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to create staff: ${errorText}`);
+      }
+      
+      return response.json();
+    } catch (error) {
+      console.error('Error creating staff:', error);
+      throw error;
+    }
+  },
+
+  updateStaff: async (id: string, staffData: Partial<Omit<Staff, 'id'>>): Promise<Staff> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/staff/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(staffData),
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to update staff: ${errorText}`);
+      }
+      
+      return response.json();
+    } catch (error) {
+      console.error('Error updating staff:', error);
+      throw error;
+    }
+  },
+
+  deleteStaff: async (id: string): Promise<{ success: boolean }> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/staff/${id}`, {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to delete staff: ${errorText}`);
+      }
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Error deleting staff:', error);
+      throw error;
+    }
   }
 };

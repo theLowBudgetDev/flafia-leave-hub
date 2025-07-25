@@ -8,7 +8,12 @@ import {
   getAllLeaveRequests,
   getLeaveRequestById,
   createLeaveRequest,
-  updateLeaveRequestStatus
+  updateLeaveRequestStatus,
+  createStaff,
+  deleteStaff,
+  getNotificationsByStaffId,
+  getSettingsByStaffId,
+  saveSettings
 } from './services/databaseService';
 
 // Initialize database on server start
@@ -48,6 +53,72 @@ app.get('/api/staff/:id', (req, res) => {
   } catch (error) {
     console.error('Error fetching staff by ID:', error);
     res.status(500).json({ error: 'Failed to fetch staff member' });
+  }
+});
+
+// Create staff
+app.post('/api/staff', (req, res) => {
+  try {
+    const {
+      name, email, department, position, totalLeave, usedLeave, pendingLeave,
+      phone, annualLeave, sickLeave, maternityLeave, paternityLeave, emergencyLeave
+    } = req.body;
+
+    // Validate required fields
+    if (!name || !email || !department || !position || typeof totalLeave !== 'number') {
+      return res.status(400).json({ error: 'Missing required staff fields' });
+    }
+
+    // Optionally validate phone and leave types if needed
+    const staff = createStaff({
+      name,
+      email,
+      department,
+      position,
+      totalLeave,
+      usedLeave: usedLeave ?? 0,
+      pendingLeave: pendingLeave ?? 0,
+      phone: phone ?? '',
+      annualLeave: annualLeave ?? 0,
+      sickLeave: sickLeave ?? 0,
+      maternityLeave: maternityLeave ?? 0,
+      paternityLeave: paternityLeave ?? 0,
+      emergencyLeave: emergencyLeave ?? 0
+    });
+    res.status(201).json(staff);
+  } catch (error) {
+    console.error('Error creating staff:', error);
+    res.status(400).json({ error: 'Failed to create staff: ' + (error as Error).message });
+  }
+});
+
+// Delete staff
+app.delete('/api/staff/:id', (req, res) => {
+  try {
+    const deleted = deleteStaff(req.params.id);
+    if (deleted) {
+      res.json({ success: true });
+    } else {
+      res.status(404).json({ error: 'Staff not found' });
+    }
+  } catch (error) {
+    console.error('Error deleting staff:', error);
+    res.status(500).json({ error: 'Failed to delete staff' });
+  }
+});
+
+// Notifications endpoint
+app.get('/api/notifications', (req, res) => {
+  try {
+    const staffId = req.query.staffId as string;
+    if (!staffId) {
+      return res.status(400).json({ error: 'Missing staffId query parameter' });
+    }
+    const notifications = getNotificationsByStaffId(staffId);
+    res.json(notifications);
+  } catch (error) {
+    console.error('Error fetching notifications:', error);
+    res.status(500).json({ error: 'Failed to fetch notifications' });
   }
 });
 
@@ -111,6 +182,41 @@ app.put('/api/leave-requests/:id/status', (req, res) => {
   } catch (error) {
     console.error('Error updating leave request status:', error);
     res.status(500).json({ error: 'Failed to update leave request status' });
+  }
+});
+
+// Settings endpoints
+app.get('/api/settings', (req, res) => {
+  try {
+    const staffId = req.query.staffId as string;
+    if (!staffId) {
+      return res.status(400).json({ error: 'Missing staffId query parameter' });
+    }
+    const settings = getSettingsByStaffId(staffId);
+    res.json(settings);
+  } catch (error) {
+    console.error('Error fetching settings:', error);
+    res.status(500).json({ error: 'Failed to fetch settings' });
+  }
+});
+
+app.post('/api/settings', (req, res) => {
+  try {
+    const { staffId, emailNotifications, pushNotifications, leaveUpdates, systemAlerts } = req.body;
+    if (!staffId) {
+      return res.status(400).json({ error: 'Missing staffId' });
+    }
+    const updated = saveSettings({
+      staffId,
+      emailNotifications: !!emailNotifications,
+      pushNotifications: !!pushNotifications,
+      leaveUpdates: !!leaveUpdates,
+      systemAlerts: !!systemAlerts,
+    });
+    res.json(updated);
+  } catch (error) {
+    console.error('Error saving settings:', error);
+    res.status(500).json({ error: 'Failed to save settings' });
   }
 });
 

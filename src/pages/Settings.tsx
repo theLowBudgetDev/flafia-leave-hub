@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { api } from "@/services/api";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { Card } from "@/components/ui/card";
@@ -23,27 +24,51 @@ import {
   Loader2 
 } from "lucide-react";
 
+import { useEffect } from "react";
 const Settings = () => {
   const { toast } = useToast();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("profile");
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  
+  const [settingsLoading, setSettingsLoading] = useState(true);
+  const [settingsError, setSettingsError] = useState<string | null>(null);
+
   // Profile settings
   const [name, setName] = useState(user?.name || "");
   const [email, setEmail] = useState(user?.email || "");
   const [phone, setPhone] = useState("+234 803 123 4567");
   const [department, setDepartment] = useState(user?.department || "");
-  
+
   // Notification settings
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [pushNotifications, setPushNotifications] = useState(true);
   const [leaveUpdates, setLeaveUpdates] = useState(true);
   const [systemAlerts, setSystemAlerts] = useState(true);
-  
+
   // Security settings
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+
+  // Fetch settings from backend
+  useEffect(() => {
+    if (!user?.id) return;
+    setSettingsLoading(true);
+    setSettingsError(null);
+    (async () => {
+      try {
+        const settings = await api.getSettings(user.id);
+        setEmailNotifications(settings.emailNotifications);
+        setPushNotifications(settings.pushNotifications);
+        setLeaveUpdates(settings.leaveUpdates);
+        setSystemAlerts(settings.systemAlerts);
+      } catch (err: any) {
+        setSettingsError("Failed to load settings");
+      } finally {
+        setSettingsLoading(false);
+      }
+    })();
+  }, [user]);
+
 
   const handleSaveProfile = () => {
     setIsSaving(true);
@@ -58,18 +83,34 @@ const Settings = () => {
     }, 1000);
   };
 
-  const handleSaveNotifications = () => {
+  const handleSaveNotifications = async () => {
+    if (!user?.id) return;
     setIsSaving(true);
-    
-    // Simulate API call
-    setTimeout(() => {
-      setIsSaving(false);
+    setSettingsError(null);
+    try {
+      await api.saveSettings({
+        staffId: user.id,
+        emailNotifications,
+        pushNotifications,
+        leaveUpdates,
+        systemAlerts,
+      });
       toast({
         title: "Notification Settings Updated",
         description: "Your notification preferences have been saved.",
       });
-    }, 1000);
+    } catch (err: any) {
+      setSettingsError("Failed to save settings");
+      toast({
+        title: "Error",
+        description: "Failed to save notification settings",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
+
 
   const handleSaveSecurity = () => {
     setIsSaving(true);
