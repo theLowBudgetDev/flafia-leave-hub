@@ -14,18 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { api, LeaveRequest } from "@/services/api";
-
-type Notification = {
-  id: number;
-  title: string;
-  message: string;
-  time: string;
-  unread: boolean;
-  link?: string;
-  type?: "leave" | "system" | "alert";
-  relatedRequestId?: number;
-};
+import { api, Notification } from "@/services/api";
 
 export const NotificationDropdown = () => {
   const { toast } = useToast();
@@ -33,58 +22,19 @@ export const NotificationDropdown = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Load notifications from localStorage on component mount
   useEffect(() => {
     if (user?.id) {
-      loadNotificationsFromStorage();
       fetchNotifications();
     }
-  }, [user]);
-
-  const loadNotificationsFromStorage = () => {
-    if (!user?.id) return;
-    
-    try {
-      const stored = localStorage.getItem(`notifications_${user.id}`);
-      if (stored) {
-        const parsedNotifications = JSON.parse(stored);
-        setNotifications(parsedNotifications);
-      }
-    } catch (error) {
-      console.error('Error loading notifications from storage:', error);
-    }
-  };
-
-  const saveNotificationsToStorage = (notifs: Notification[]) => {
-    if (!user?.id) return;
-    
-    try {
-      localStorage.setItem(`notifications_${user.id}`, JSON.stringify(notifs));
-    } catch (error) {
-      console.error('Error saving notifications to storage:', error);
-    }
-  };
+  }, [user?.id]);
 
   const fetchNotifications = async () => {
     if (!user?.id) return;
     
     try {
       setLoading(true);
-      const requests = await api.getLeaveRequests(user.id);
-      const generatedNotifications = generateNotifications(requests);
-      
-      // Merge with existing notifications, preserving read status
-      const existingNotifications = notifications;
-      const mergedNotifications = generatedNotifications.map(newNotif => {
-        const existing = existingNotifications.find(n => 
-          n.relatedRequestId === newNotif.relatedRequestId && 
-          n.type === newNotif.type
-        );
-        return existing ? { ...newNotif, unread: existing.unread } : newNotif;
-      });
-      
-      setNotifications(mergedNotifications.slice(0, 10)); // Show recent 10 notifications
-      saveNotificationsToStorage(mergedNotifications.slice(0, 10));
+      const notifs = await api.getNotifications(user.id);
+      setNotifications(notifs.slice(0, 10));
     } catch (error) {
       console.error("Error fetching notifications:", error);
     } finally {
@@ -92,150 +42,60 @@ export const NotificationDropdown = () => {
     }
   };
 
-  const generateNotifications = (requests: LeaveRequest[]): Notification[] => {
-    const notifications: Notification[] = [];
-    let notificationId = 1;
-
-    // Generate notifications for leave request status changes
-    requests.forEach((request) => {
-      if (request.status === 'Approved' && request.approvedDate) {
-        const approvedDate = new Date(request.approvedDate);
-        const daysSinceApproval = Math.floor((Date.now() - approvedDate.getTime()) / (1000 * 60 * 60 * 24));
-        
-        notifications.push({
-          id: notificationId++,
-          title: "Leave Request Approved",
-          message: `Your ${request.type.toLowerCase()} request for ${request.days} day${request.days > 1 ? 's' : ''} has been approved`,
-          time: getRelativeTime(request.approvedDate),
-          unread: daysSinceApproval <= 1,
-          link: "/history",
-          type: "leave",
-          relatedRequestId: request.id
-        });
-      }
-      
-      if (request.status === 'Rejected' && request.approvedDate) {
-        const rejectedDate = new Date(request.approvedDate);
-        const daysSinceRejection = Math.floor((Date.now() - rejectedDate.getTime()) / (1000 * 60 * 60 * 24));
-        
-        notifications.push({
-          id: notificationId++,
-          title: "Leave Request Rejected",
-          message: `Your ${request.type.toLowerCase()} request has been rejected${request.rejectedReason ? `: ${request.rejectedReason}` : ''}`,
-          time: getRelativeTime(request.approvedDate),
-          unread: daysSinceRejection <= 1,
-          link: "/history",
-          type: "alert",
-          relatedRequestId: request.id
-        });
-      }
-      
-      if (request.status === 'Pending') {
-        const appliedDate = new Date(request.appliedDate);
-        const daysSinceApplication = Math.floor((Date.now() - appliedDate.getTime()) / (1000 * 60 * 60 * 24));
-        
-        if (daysSinceApplication === 0) {
-          notifications.push({
-            id: notificationId++,
-            title: "Leave Request Submitted",
-            message: `Your ${request.type.toLowerCase()} request has been submitted and is pending approval`,
-            time: getRelativeTime(request.appliedDate),
-            unread: true,
-            link: "/history",
-            type: "leave",
-            relatedRequestId: request.id
-          });
-        }
-      }
-    });
-
-    // Add upcoming leave reminders
-    const upcomingLeave = requests.filter(request => {
-      if (request.status !== 'Approved') return false;
-      const startDate = new Date(request.startDate);
-      const today = new Date();
-      const daysUntilLeave = Math.ceil((startDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-      return daysUntilLeave > 0 && daysUntilLeave <= 7;
-    });
-
-    upcomingLeave.forEach(request => {
-      const startDate = new Date(request.startDate);
-      const daysUntilLeave = Math.ceil((startDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-      
-      notifications.push({
-        id: notificationId++,
-        title: "Upcoming Leave Reminder",
-        message: `Your ${request.type.toLowerCase()} starts in ${daysUntilLeave} day${daysUntilLeave > 1 ? 's' : ''}`,
-        time: "Today",
-        unread: true,
-        link: "/calendar",
-        type: "leave",
-        relatedRequestId: request.id
-      });
-    });
-
-    // Sort by unread status first, then by time
-    return notifications.sort((a, b) => {
-      if (a.unread && !b.unread) return -1;
-      if (!a.unread && b.unread) return 1;
-      return 0;
-    });
-  };
-
-  const getRelativeTime = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
-    
-    if (diffInMinutes < 1) return "Just now";
-    if (diffInMinutes < 60) return `${diffInMinutes} minute${diffInMinutes > 1 ? 's' : ''} ago`;
-    
-    const diffInHours = Math.floor(diffInMinutes / 60);
-    if (diffInHours < 24) return `${diffInHours} hour${diffInHours > 1 ? 's' : ''} ago`;
-    
-    const diffInDays = Math.floor(diffInHours / 24);
-    if (diffInDays < 7) return `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`;
-    
-    const diffInWeeks = Math.floor(diffInDays / 7);
-    return `${diffInWeeks} week${diffInWeeks > 1 ? 's' : ''} ago`;
-  };
-
   const unreadCount = notifications.filter(n => n.unread).length;
 
-  const markAllAsRead = () => {
-    const updatedNotifications = notifications.map(notification => ({
-      ...notification,
-      unread: false
-    }));
-    
-    setNotifications(updatedNotifications);
-    saveNotificationsToStorage(updatedNotifications);
-    
-    toast({
-      title: "Notifications Updated",
-      description: "All notifications marked as read",
-    });
+  const markAllAsRead = async () => {
+    try {
+      const promises = notifications
+        .filter(n => n.unread)
+        .map(n => api.markNotificationRead(n.id, true));
+      
+      await Promise.all(promises);
+      
+      const updatedNotifications = notifications.map(notification => ({
+        ...notification,
+        unread: false
+      }));
+      
+      setNotifications(updatedNotifications);
+      
+      toast({
+        title: "Notifications Updated",
+        description: "All notifications marked as read",
+      });
+    } catch (error) {
+      console.error('Error marking notifications as read:', error);
+    }
   };
 
-  const markAsRead = (id: number) => {
-    const updatedNotifications = notifications.map(notification => 
-      notification.id === id ? { ...notification, unread: false } : notification
-    );
-    
-    setNotifications(updatedNotifications);
-    saveNotificationsToStorage(updatedNotifications);
+  const markAsRead = async (id: string) => {
+    try {
+      await api.markNotificationRead(id, true);
+      
+      const updatedNotifications = notifications.map(notification => 
+        notification.id === id ? { ...notification, unread: false } : notification
+      );
+      
+      setNotifications(updatedNotifications);
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
   };
 
-  const removeNotification = (id: number) => {
-    const updatedNotifications = notifications.filter(notification => notification.id !== id);
-    
-    setNotifications(updatedNotifications);
-    saveNotificationsToStorage(updatedNotifications);
-    
-    toast({
-      title: "Notification Removed",
-      description: "The notification has been removed",
-    });
+  const removeNotification = async (id: string) => {
+    try {
+      await api.deleteNotification(id);
+      
+      const updatedNotifications = notifications.filter(notification => notification.id !== id);
+      setNotifications(updatedNotifications);
+      
+      toast({
+        title: "Notification Removed",
+        description: "The notification has been removed",
+      });
+    } catch (error) {
+      console.error('Error removing notification:', error);
+    }
   };
 
   return (
@@ -280,7 +140,7 @@ export const NotificationDropdown = () => {
                   {notification.link ? (
                     <Link to={notification.link} className="hover:no-underline">
                       <div className="flex items-center gap-2">
-                        <p className="font-medium text-sm">{notification.title}</p>
+                        <p className="font-medium text-sm">{notification.title || 'Notification'}</p>
                         {notification.unread && (
                           <div className="h-2 w-2 bg-primary rounded-full"></div>
                         )}
@@ -289,13 +149,13 @@ export const NotificationDropdown = () => {
                         {notification.message}
                       </p>
                       <p className="text-xs text-muted-foreground mt-1">
-                        {notification.time}
+                        {notification.time || new Date(notification.createdAt).toLocaleDateString()}
                       </p>
                     </Link>
                   ) : (
                     <>
                       <div className="flex items-center gap-2">
-                        <p className="font-medium text-sm">{notification.title}</p>
+                        <p className="font-medium text-sm">{notification.title || 'Notification'}</p>
                         {notification.unread && (
                           <div className="h-2 w-2 bg-primary rounded-full"></div>
                         )}
@@ -304,7 +164,7 @@ export const NotificationDropdown = () => {
                         {notification.message}
                       </p>
                       <p className="text-xs text-muted-foreground mt-1">
-                        {notification.time}
+                        {notification.time || new Date(notification.createdAt).toLocaleDateString()}
                       </p>
                     </>
                   )}

@@ -99,40 +99,65 @@ const Notifications = () => {
     }
   };
 
-  const markAsRead = (notificationId: string) => {
-    setNotifications(prev => 
-      prev.map(notification => 
-        notification.id === notificationId 
-          ? { ...notification, unread: false }
-          : notification
-      )
-    );
+  const markAsRead = async (notificationId: string) => {
+    try {
+      await api.markNotificationRead(notificationId, true);
+      setNotifications(prev => 
+        prev.map(notification => 
+          notification.id === notificationId 
+            ? { ...notification, unread: false }
+            : notification
+        )
+      );
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
   };
 
-  const markAsUnread = (notificationId: string) => {
-    setNotifications(prev => 
-      prev.map(notification => 
-        notification.id === notificationId 
-          ? { ...notification, unread: true }
-          : notification
-      )
-    );
+  const markAsUnread = async (notificationId: string) => {
+    try {
+      await api.markNotificationRead(notificationId, false);
+      setNotifications(prev => 
+        prev.map(notification => 
+          notification.id === notificationId 
+            ? { ...notification, unread: true }
+            : notification
+        )
+      );
+    } catch (error) {
+      console.error('Error marking notification as unread:', error);
+    }
   };
 
-  const deleteNotification = (notificationId: string) => {
-    setNotifications(prev => prev.filter(n => n.id !== notificationId));
-    toast({
-      title: "Notification deleted",
-      description: "The notification has been removed",
-    });
+  const deleteNotification = async (notificationId: string) => {
+    try {
+      await api.deleteNotification(notificationId);
+      setNotifications(prev => prev.filter(n => n.id !== notificationId));
+      toast({
+        title: "Notification deleted",
+        description: "The notification has been removed",
+      });
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+    }
   };
 
-  const markAllAsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, unread: false })));
-    toast({
-      title: "All notifications marked as read",
-      description: "Your notifications have been updated",
-    });
+  const markAllAsRead = async () => {
+    try {
+      const promises = notifications
+        .filter(n => n.unread)
+        .map(n => api.markNotificationRead(n.id, true));
+      
+      await Promise.all(promises);
+      
+      setNotifications(prev => prev.map(n => ({ ...n, unread: false })));
+      toast({
+        title: "All notifications marked as read",
+        description: "Your notifications have been updated",
+      });
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error);
+    }
   };
 
   const filteredNotifications = notifications.filter(notification => {

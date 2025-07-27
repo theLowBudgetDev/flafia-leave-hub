@@ -67,6 +67,22 @@ export const api = {
     return response.json();
   },
 
+  markNotificationRead: async (id: string, read: boolean): Promise<boolean> => {
+    const response = await fetch(`${API_BASE_URL}/notifications/${id}/read`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ read })
+    });
+    return response.ok;
+  },
+
+  deleteNotification: async (id: string): Promise<boolean> => {
+    const response = await fetch(`${API_BASE_URL}/notifications/${id}`, {
+      method: 'DELETE'
+    });
+    return response.ok;
+  },
+
   getSettings: async (staffId: string): Promise<Settings> => {
     const response = await fetch(`${API_BASE_URL}/settings?staffId=${staffId}`);
     if (!response.ok) throw new Error('Failed to fetch settings');
