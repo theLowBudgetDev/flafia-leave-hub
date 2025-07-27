@@ -42,8 +42,18 @@ export const createStaff = (staff: Omit<Staff, 'id'> & { id?: string }): Staff =
 };
 
 export const deleteStaff = (id: string): boolean => {
-  const stmt = db.prepare('DELETE FROM staff WHERE id = ?');
-  const info = stmt.run(id);
+  const transaction = db.transaction(() => {
+    // Delete related records first
+    db.prepare('DELETE FROM leave_requests WHERE staffId = ?').run(id);
+    db.prepare('DELETE FROM notifications WHERE staffId = ?').run(id);
+    db.prepare('DELETE FROM settings WHERE staffId = ?').run(id);
+    
+    // Then delete the staff member
+    const stmt = db.prepare('DELETE FROM staff WHERE id = ?');
+    return stmt.run(id);
+  });
+  
+  const info = transaction();
   return info.changes > 0;
 };
 
