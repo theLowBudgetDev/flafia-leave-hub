@@ -13,9 +13,22 @@ export const getAllStaff = (): Staff[] => {
   return stmt.all() as Staff[];
 };
 
+export const getStaffByEmail = (email: string): Staff | undefined => {
+  const stmt = db.prepare('SELECT * FROM staff WHERE email = ?');
+  const staff = stmt.get(email);
+  return staff as Staff | undefined;
+};
+
 export const createStaff = (staff: Omit<Staff, 'id'> & { id?: string }): Staff => {
   // Generate a unique ID if not provided
   const id = staff.id || `staff-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+  
+  // Check if staff with this ID already exists
+  const existing = getStaffById(id);
+  if (existing) {
+    return existing;
+  }
+  
   const stmt = db.prepare(`
     INSERT INTO staff (
       id, name, email, department, position, totalLeave, usedLeave, pendingLeave,

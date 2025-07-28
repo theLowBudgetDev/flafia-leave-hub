@@ -42,31 +42,93 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             department: "Human Resources"
           };
         } else if (role === "staff") {
-          // Map email to existing staff IDs for demo
-          const staffMapping: Record<string, any> = {
-            "john.doe@fulafia.edu.ng": { id: "staff-1", name: "John Doe", department: "Computer Science" },
-            "jane.smith@fulafia.edu.ng": { id: "staff-2", name: "Jane Smith", department: "Mathematics" },
-            "mike.johnson@fulafia.edu.ng": { id: "staff-3", name: "Mike Johnson", department: "Physics" },
-            "sarah.wilson@fulafia.edu.ng": { id: "staff-4", name: "Sarah Wilson", department: "Chemistry" },
-            "david.brown@fulafia.edu.ng": { id: "staff-5", name: "David Brown", department: "Biology" }
-          };
-          
-          const staffInfo = staffMapping[email];
-          if (staffInfo) {
-            loggedInUser = {
-              ...staffInfo,
-              email,
-              role: "staff" as const
+          // First check if staff exists in database by email
+          try {
+            const response = await fetch(`http://localhost:4000/api/staff`);
+            if (response.ok) {
+              const allStaff = await response.json();
+              const existingStaff = allStaff.find((staff: any) => staff.email === email);
+              
+              if (existingStaff) {
+                loggedInUser = {
+                  id: existingStaff.id,
+                  name: existingStaff.name,
+                  email: existingStaff.email,
+                  role: "staff" as const,
+                  department: existingStaff.department
+                };
+              } else {
+                // Create unique staff user for new email
+                const uniqueId = `staff-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+                const name = email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                
+                loggedInUser = {
+                  id: uniqueId,
+                  name,
+                  email,
+                  role: "staff" as const,
+                  department: "General"
+                };
+                
+                // Create staff record in database via API
+                try {
+                  const createResponse = await fetch('http://localhost:4000/api/staff', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      id: uniqueId,
+                      name,
+                      email,
+                      department: "General",
+                      position: "Staff",
+                      totalLeave: 30,
+                      phone: "",
+                      annualLeave: 0,
+                      sickLeave: 0,
+                      maternityLeave: 0,
+                      paternityLeave: 0,
+                      emergencyLeave: 0
+                    })
+                  });
+                  
+                  if (!createResponse.ok) {
+                    console.warn('Failed to create staff record in database');
+                  }
+                } catch (error) {
+                  console.warn('Error creating staff record:', error);
+                }
+              }
+            }
+          } catch (error) {
+            console.warn('Error fetching staff data:', error);
+            // Fallback to predefined mapping if API fails
+            const staffMapping: Record<string, any> = {
+              "john.doe@fulafia.edu.ng": { id: "staff-1", name: "John Doe", department: "Computer Science" },
+              "jane.smith@fulafia.edu.ng": { id: "staff-2", name: "Jane Smith", department: "Mathematics" },
+              "mike.johnson@fulafia.edu.ng": { id: "staff-3", name: "Mike Johnson", department: "Physics" },
+              "sarah.wilson@fulafia.edu.ng": { id: "staff-4", name: "Sarah Wilson", department: "Chemistry" },
+              "david.brown@fulafia.edu.ng": { id: "staff-5", name: "David Brown", department: "Biology" }
             };
-          } else {
-            // Default staff user for any other email
-            loggedInUser = {
-              id: "staff-1",
-              name: "Staff User",
-              email,
-              role: "staff" as const,
-              department: "Computer Science"
-            };
+            
+            const staffInfo = staffMapping[email];
+            if (staffInfo) {
+              loggedInUser = {
+                ...staffInfo,
+                email,
+                role: "staff" as const
+              };
+            } else {
+              const uniqueId = `staff-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+              const name = email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+              
+              loggedInUser = {
+                id: uniqueId,
+                name,
+                email,
+                role: "staff" as const,
+                department: "General"
+              };
+            }
           }
         }
         

@@ -4,6 +4,7 @@ import bodyParser from 'body-parser';
 import {
   getStaffById,
   getAllStaff,
+  getStaffByEmail,
   getLeaveRequestsByStaffId,
   getAllLeaveRequests,
   getLeaveRequestById,
@@ -18,6 +19,7 @@ import {
   getSettingsByStaffId,
   saveSettings
 } from './services/databaseService';
+import { getAdminSettings, saveAdminSettings, resetAdminSettings } from './services/adminSettingsService';
 
 // Initialize database on server start
 import './database/index';
@@ -63,7 +65,7 @@ app.get('/api/staff/:id', (req, res) => {
 app.post('/api/staff', (req, res) => {
   try {
     const {
-      name, email, department, position, totalLeave, usedLeave, pendingLeave,
+      id, name, email, department, position, totalLeave, usedLeave, pendingLeave,
       phone, annualLeave, sickLeave, maternityLeave, paternityLeave, emergencyLeave
     } = req.body;
 
@@ -72,8 +74,14 @@ app.post('/api/staff', (req, res) => {
       return res.status(400).json({ error: 'Missing required staff fields' });
     }
 
-    // Optionally validate phone and leave types if needed
+    // Check if staff with this email already exists
+    const existingStaff = getAllStaff().find(staff => staff.email === email);
+    if (existingStaff) {
+      return res.status(200).json(existingStaff);
+    }
+
     const staff = createStaff({
+      id,
       name,
       email,
       department,
@@ -273,6 +281,37 @@ app.delete('/api/notifications/:id', (req, res) => {
   } catch (error) {
     console.error('Error deleting notification:', error);
     res.status(500).json({ error: 'Failed to delete notification' });
+  }
+});
+
+// Admin settings endpoints
+app.get('/api/admin/settings', (req, res) => {
+  try {
+    const settings = getAdminSettings();
+    res.json(settings);
+  } catch (error) {
+    console.error('Error fetching admin settings:', error);
+    res.status(500).json({ error: 'Failed to fetch admin settings' });
+  }
+});
+
+app.post('/api/admin/settings', (req, res) => {
+  try {
+    saveAdminSettings(req.body);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error saving admin settings:', error);
+    res.status(500).json({ error: 'Failed to save admin settings' });
+  }
+});
+
+app.post('/api/admin/settings/reset', (req, res) => {
+  try {
+    resetAdminSettings();
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error resetting admin settings:', error);
+    res.status(500).json({ error: 'Failed to reset admin settings' });
   }
 });
 

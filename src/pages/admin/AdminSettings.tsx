@@ -9,36 +9,60 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Save, RefreshCcw, AlertTriangle, Mail, Bell, Lock, User, Calendar } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 
 const AdminSettings = () => {
   const { toast } = useToast();
-  const [emailNotifications, setEmailNotifications] = useState(true);
-  const [autoApproval, setAutoApproval] = useState(false);
-  const [maxLeaveDays, setMaxLeaveDays] = useState("25");
-  const [minAdvanceNotice, setMinAdvanceNotice] = useState("7");
-  const [fiscalYearStart, setFiscalYearStart] = useState("january");
+  const [settings, setSettings] = useState({
+    institutionName: "Federal University, Lafia",
+    systemEmail: "hr@fulafia.edu.ng",
+    maxLeaveDays: 25,
+    minAdvanceNotice: 7,
+    fiscalYearStart: "january",
+    maxCarryOverDays: 5,
+    autoApproval: false,
+    emailNotifications: true,
+    minPasswordLength: 8,
+    passwordExpiry: 90,
+    sessionTimeout: 30,
+    maxLoginAttempts: 5
+  });
 
-  const handleSaveGeneralSettings = () => {
-    toast({
-      title: "Settings Saved",
-      description: "Your general settings have been updated successfully.",
-    });
+  useEffect(() => {
+    fetch('http://localhost:4000/api/admin/settings')
+      .then(res => res.json())
+      .then(data => setSettings(data))
+      .catch(err => console.error('Failed to load settings:', err));
+  }, []);
+
+  const saveSettings = async (settingsToSave: any) => {
+    try {
+      const response = await fetch('http://localhost:4000/api/admin/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settingsToSave)
+      });
+      if (response.ok) {
+        setSettings(prev => ({ ...prev, ...settingsToSave }));
+        toast({ title: "Settings Saved", description: "Settings updated successfully." });
+      }
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to save settings.", variant: "destructive" });
+    }
   };
 
-  const handleSaveNotificationSettings = () => {
-    toast({
-      title: "Notification Settings Saved",
-      description: "Your notification preferences have been updated successfully.",
-    });
-  };
-
-  const handleSaveSecuritySettings = () => {
-    toast({
-      title: "Security Settings Saved",
-      description: "Your security settings have been updated successfully.",
-    });
+  const resetSettings = async () => {
+    try {
+      const response = await fetch('http://localhost:4000/api/admin/settings/reset', { method: 'POST' });
+      if (response.ok) {
+        const defaultSettings = await fetch('http://localhost:4000/api/admin/settings').then(res => res.json());
+        setSettings(defaultSettings);
+        toast({ title: "Settings Reset", description: "Settings reset to defaults." });
+      }
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to reset settings.", variant: "destructive" });
+    }
   };
 
   return (
@@ -79,12 +103,20 @@ const AdminSettings = () => {
                 <div className="grid md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <Label htmlFor="institution-name">Institution Name</Label>
-                    <Input id="institution-name" defaultValue="Federal University, Lafia" />
+                    <Input 
+                      id="institution-name" 
+                      value={settings.institutionName}
+                      onChange={(e) => setSettings(prev => ({ ...prev, institutionName: e.target.value }))}
+                    />
                   </div>
                   
                   <div className="space-y-2">
                     <Label htmlFor="system-email">System Email</Label>
-                    <Input id="system-email" defaultValue="hr@fulafia.edu.ng" />
+                    <Input 
+                      id="system-email" 
+                      value={settings.systemEmail}
+                      onChange={(e) => setSettings(prev => ({ ...prev, systemEmail: e.target.value }))}
+                    />
                   </div>
                 </div>
                 
@@ -99,8 +131,8 @@ const AdminSettings = () => {
                       <Input 
                         id="max-leave-days" 
                         type="number" 
-                        value={maxLeaveDays}
-                        onChange={(e) => setMaxLeaveDays(e.target.value)}
+                        value={settings.maxLeaveDays}
+                        onChange={(e) => setSettings(prev => ({ ...prev, maxLeaveDays: parseInt(e.target.value) }))}
                       />
                     </div>
                     
@@ -109,14 +141,14 @@ const AdminSettings = () => {
                       <Input 
                         id="min-advance-notice" 
                         type="number" 
-                        value={minAdvanceNotice}
-                        onChange={(e) => setMinAdvanceNotice(e.target.value)}
+                        value={settings.minAdvanceNotice}
+                        onChange={(e) => setSettings(prev => ({ ...prev, minAdvanceNotice: parseInt(e.target.value) }))}
                       />
                     </div>
                     
                     <div className="space-y-2">
                       <Label htmlFor="fiscal-year-start">Fiscal Year Start</Label>
-                      <Select value={fiscalYearStart} onValueChange={setFiscalYearStart}>
+                      <Select value={settings.fiscalYearStart} onValueChange={(value) => setSettings(prev => ({ ...prev, fiscalYearStart: value }))}>
                         <SelectTrigger id="fiscal-year-start">
                           <SelectValue placeholder="Select month" />
                         </SelectTrigger>
@@ -139,15 +171,20 @@ const AdminSettings = () => {
                     
                     <div className="space-y-2">
                       <Label htmlFor="carry-over">Maximum Carry-Over Days</Label>
-                      <Input id="carry-over" type="number" defaultValue="5" />
+                      <Input 
+                        id="carry-over" 
+                        type="number" 
+                        value={settings.maxCarryOverDays}
+                        onChange={(e) => setSettings(prev => ({ ...prev, maxCarryOverDays: parseInt(e.target.value) }))}
+                      />
                     </div>
                   </div>
                   
                   <div className="flex items-center space-x-2 pt-2">
                     <Switch 
                       id="auto-approval" 
-                      checked={autoApproval}
-                      onCheckedChange={setAutoApproval}
+                      checked={settings.autoApproval}
+                      onCheckedChange={(checked) => setSettings(prev => ({ ...prev, autoApproval: checked }))}
                     />
                     <Label htmlFor="auto-approval">Enable automatic approval for requests under 3 days</Label>
                   </div>
@@ -156,23 +193,19 @@ const AdminSettings = () => {
                 <Separator />
                 
                 <div className="flex justify-end gap-3">
-                  <Button 
-                    variant="outline"
-                    onClick={() => {
-                      setMaxLeaveDays("25");
-                      setMinAdvanceNotice("7");
-                      setFiscalYearStart("january");
-                      setAutoApproval(false);
-                      toast({
-                        title: "Settings Reset",
-                        description: "General settings have been reset to default values.",
-                      });
-                    }}
-                  >
+                  <Button variant="outline" onClick={resetSettings}>
                     <RefreshCcw className="h-4 w-4 mr-2" />
                     Reset to Defaults
                   </Button>
-                  <Button onClick={handleSaveGeneralSettings}>
+                  <Button onClick={() => saveSettings({
+                    institutionName: settings.institutionName,
+                    systemEmail: settings.systemEmail,
+                    maxLeaveDays: settings.maxLeaveDays,
+                    minAdvanceNotice: settings.minAdvanceNotice,
+                    fiscalYearStart: settings.fiscalYearStart,
+                    maxCarryOverDays: settings.maxCarryOverDays,
+                    autoApproval: settings.autoApproval
+                  })}>
                     <Save className="h-4 w-4 mr-2" />
                     Save Changes
                   </Button>
@@ -192,8 +225,8 @@ const AdminSettings = () => {
                   <div className="flex items-center space-x-2">
                     <Switch 
                       id="email-notifications" 
-                      checked={emailNotifications}
-                      onCheckedChange={setEmailNotifications}
+                      checked={settings.emailNotifications}
+                      onCheckedChange={(checked) => setSettings(prev => ({ ...prev, emailNotifications: checked }))}
                     />
                     <Label htmlFor="email-notifications">Enable email notifications</Label>
                   </div>
@@ -276,7 +309,7 @@ const AdminSettings = () => {
                     <Mail className="h-4 w-4 mr-2" />
                     Test Email
                   </Button>
-                  <Button onClick={handleSaveNotificationSettings}>
+                  <Button onClick={() => saveSettings({ emailNotifications: settings.emailNotifications })}>
                     <Save className="h-4 w-4 mr-2" />
                     Save Changes
                   </Button>
@@ -296,12 +329,22 @@ const AdminSettings = () => {
                   <div className="grid md:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <Label htmlFor="min-password-length">Minimum Password Length</Label>
-                      <Input id="min-password-length" type="number" defaultValue="8" />
+                      <Input 
+                        id="min-password-length" 
+                        type="number" 
+                        value={settings.minPasswordLength}
+                        onChange={(e) => setSettings(prev => ({ ...prev, minPasswordLength: parseInt(e.target.value) }))}
+                      />
                     </div>
                     
                     <div className="space-y-2">
                       <Label htmlFor="password-expiry">Password Expiry (days)</Label>
-                      <Input id="password-expiry" type="number" defaultValue="90" />
+                      <Input 
+                        id="password-expiry" 
+                        type="number" 
+                        value={settings.passwordExpiry}
+                        onChange={(e) => setSettings(prev => ({ ...prev, passwordExpiry: parseInt(e.target.value) }))}
+                      />
                     </div>
                   </div>
                   
@@ -336,12 +379,22 @@ const AdminSettings = () => {
                   <div className="grid md:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <Label htmlFor="session-timeout">Session Timeout (minutes)</Label>
-                      <Input id="session-timeout" type="number" defaultValue="30" />
+                      <Input 
+                        id="session-timeout" 
+                        type="number" 
+                        value={settings.sessionTimeout}
+                        onChange={(e) => setSettings(prev => ({ ...prev, sessionTimeout: parseInt(e.target.value) }))}
+                      />
                     </div>
                     
                     <div className="space-y-2">
                       <Label htmlFor="max-login-attempts">Maximum Login Attempts</Label>
-                      <Input id="max-login-attempts" type="number" defaultValue="5" />
+                      <Input 
+                        id="max-login-attempts" 
+                        type="number" 
+                        value={settings.maxLoginAttempts}
+                        onChange={(e) => setSettings(prev => ({ ...prev, maxLoginAttempts: parseInt(e.target.value) }))}
+                      />
                     </div>
                   </div>
                   
@@ -365,11 +418,16 @@ const AdminSettings = () => {
                 </div>
                 
                 <div className="flex justify-end gap-3">
-                  <Button variant="outline">
+                  <Button variant="outline" onClick={resetSettings}>
                     <RefreshCcw className="h-4 w-4 mr-2" />
                     Reset to Defaults
                   </Button>
-                  <Button onClick={handleSaveSecuritySettings}>
+                  <Button onClick={() => saveSettings({
+                    minPasswordLength: settings.minPasswordLength,
+                    passwordExpiry: settings.passwordExpiry,
+                    sessionTimeout: settings.sessionTimeout,
+                    maxLoginAttempts: settings.maxLoginAttempts
+                  })}>
                     <Save className="h-4 w-4 mr-2" />
                     Save Changes
                   </Button>
@@ -509,7 +567,7 @@ const AdminSettings = () => {
                 <Separator />
                 
                 <div className="flex justify-end gap-3">
-                  <Button onClick={handleSaveSecuritySettings}>
+                  <Button onClick={() => saveSettings({})}>
                     <Save className="h-4 w-4 mr-2" />
                     Save Changes
                   </Button>
