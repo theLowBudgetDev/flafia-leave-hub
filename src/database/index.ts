@@ -75,81 +75,37 @@ addColumnIfMissing('paternityLeave', 'INTEGER NOT NULL DEFAULT 0');
 addColumnIfMissing('emergencyLeave', 'INTEGER NOT NULL DEFAULT 0');
 // --- END MIGRATION ---
 
-// Check if we need to seed the database with sample data
+// Create admin_settings table
+db.exec(`
+  CREATE TABLE IF NOT EXISTS admin_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+  );
+`);
+
+// Check if we need to seed the database with admin data
 const staffCount = db.prepare('SELECT COUNT(*) as count FROM staff').get() as { count: number };
 
 if (staffCount.count === 0) {
-  console.log('Seeding database with sample data...');
+  console.log('Seeding database with admin only...');
   
-  // Insert sample staff members
+  // Insert admin user
   const insertStaff = db.prepare(`
     INSERT INTO staff (id, name, email, department, position, totalLeave, usedLeave, pendingLeave, phone, annualLeave, sickLeave, maternityLeave, paternityLeave, emergencyLeave)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   
-  const staffData = [
-    ['staff-1', 'John Doe', 'john.doe@fulafia.edu.ng', 'Computer Science', 'Lecturer', 30, 5, 0, '08031234567', 20, 5, 0, 0, 0],
-    ['staff-2', 'Jane Smith', 'jane.smith@fulafia.edu.ng', 'Mathematics', 'Senior Lecturer', 30, 8, 2, '08039876543', 18, 3, 0, 0, 0],
-    ['staff-3', 'Mike Johnson', 'mike.johnson@fulafia.edu.ng', 'Physics', 'Professor', 35, 12, 0, '08037654321', 25, 2, 0, 0, 0],
-    ['staff-4', 'Sarah Wilson', 'sarah.wilson@fulafia.edu.ng', 'Chemistry', 'Associate Professor', 32, 6, 1, '08035554444', 20, 4, 0, 0, 0],
-    ['staff-5', 'David Brown', 'david.brown@fulafia.edu.ng', 'Biology', 'Lecturer', 30, 3, 0, '08032221111', 15, 2, 0, 0, 0],
-    ['admin-1', 'Admin User', 'admin@fulafia.edu.ng', 'Human Resources', 'HR Manager', 25, 2, 0, '08030001111', 10, 1, 0, 0, 0]
-  ];
+  insertStaff.run('admin-1', 'Admin User', 'admin@fulafia.edu.ng', 'Human Resources', 'HR Manager', 25, 0, 0, '08030001111', 0, 0, 0, 0, 0);
   
-  const insertMany = db.transaction((staffList) => {
-    for (const staff of staffList) {
-      insertStaff.run(...staff);
-    }
-  });
-  
-  insertMany(staffData);
-  
-  // Insert sample leave requests
-  const insertLeaveRequest = db.prepare(`
-    INSERT INTO leave_requests (staffId, type, startDate, endDate, days, reason, status, appliedDate, approvedBy, approvedDate)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  // Set admin password
+  const insertPassword = db.prepare(`
+    INSERT OR REPLACE INTO admin_settings (key, value) VALUES ('adminPassword', ?)
   `);
+  insertPassword.run('qwertyuiop');
   
-  const leaveData = [
-    ['staff-1', 'Annual Leave', '2024-02-15', '2024-02-19', 5, 'Family vacation', 'Approved', '2024-02-01', 'admin-1', '2024-02-02'],
-    ['staff-2', 'Sick Leave', '2024-01-20', '2024-01-22', 3, 'Medical appointment', 'Approved', '2024-01-19', 'admin-1', '2024-01-19'],
-    ['staff-2', 'Personal Leave', '2024-03-10', '2024-03-12', 3, 'Personal matters', 'Pending', '2024-03-01', null, null],
-    ['staff-3', 'Annual Leave', '2024-01-05', '2024-01-15', 10, 'Holiday break', 'Approved', '2023-12-20', 'admin-1', '2023-12-21'],
-    ['staff-4', 'Study Leave', '2024-04-01', '2024-04-03', 3, 'Conference attendance', 'Pending', '2024-03-15', null, null]
-  ];
-  
-  const insertManyLeaves = db.transaction((leaveList) => {
-    for (const leave of leaveList) {
-      insertLeaveRequest.run(...leave);
-    }
-  });
-  
-  insertManyLeaves(leaveData);
-  
-  console.log('Database seeded successfully!');
+  console.log('Database seeded with admin user and password qwertyuiop');
 }
 
-// Seed notifications if empty
-const notifCount = db.prepare('SELECT COUNT(*) as count FROM notifications').get() as { count: number };
 
-if (notifCount.count === 0) {
-  console.log('Seeding notifications table...');
-  const insertNotif = db.prepare(`
-    INSERT INTO notifications (id, staffId, type, message, createdAt, read)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `);
-  const notifData = [
-    [`notif-1`, 'staff-1', 'leave', 'Your leave request has been approved!', new Date().toISOString(), 0],
-    [`notif-2`, 'staff-2', 'system', 'System maintenance scheduled for tomorrow.', new Date().toISOString(), 0],
-    [`notif-3`, 'admin-1', 'system', 'A new staff member has joined your department.', new Date().toISOString(), 0]
-  ];
-  const insertManyNotif = db.transaction((notifList) => {
-    for (const notif of notifList) {
-      insertNotif.run(...notif);
-    }
-  });
-  insertManyNotif(notifData);
-  console.log('Notifications seeded successfully!');
-}
 
 export default db;

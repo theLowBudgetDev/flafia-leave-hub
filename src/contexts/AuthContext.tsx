@@ -32,15 +32,36 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (email && password) {
         let loggedInUser;
         
-        // Check if it's an admin login
+        // Check if it's an admin login with password validation
         if (role === "admin" && email.includes("admin")) {
-          loggedInUser = {
-            id: "admin-1",
-            name: "Admin User",
-            email,
-            role: "admin" as const,
-            department: "Human Resources"
-          };
+          // Validate admin password
+          try {
+            const response = await fetch('http://localhost:4000/api/admin/settings');
+            if (response.ok) {
+              const settings = await response.json();
+              const storedPassword = settings.adminPassword || 'qwertyuiop';
+              if (password === storedPassword) {
+                loggedInUser = {
+                  id: "admin-1",
+                  name: "Admin User",
+                  email,
+                  role: "admin" as const,
+                  department: "Human Resources"
+                };
+              }
+            }
+          } catch (error) {
+            // Fallback to default password if API fails
+            if (password === 'qwertyuiop') {
+              loggedInUser = {
+                id: "admin-1",
+                name: "Admin User",
+                email,
+                role: "admin" as const,
+                department: "Human Resources"
+              };
+            }
+          }
         } else if (role === "staff") {
           // First check if staff exists in database by email
           try {

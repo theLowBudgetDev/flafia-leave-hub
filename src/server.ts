@@ -19,7 +19,7 @@ import {
   getSettingsByStaffId,
   saveSettings
 } from './services/databaseService';
-import { getAdminSettings, saveAdminSettings, resetAdminSettings } from './services/adminSettingsService';
+import { getAdminSettings, saveAdminSettings, resetAdminSettings, updateAdminPassword, getAdminPassword } from './services/adminSettingsService';
 
 // Initialize database on server start
 import './database/index';
@@ -288,7 +288,8 @@ app.delete('/api/notifications/:id', (req, res) => {
 app.get('/api/admin/settings', (req, res) => {
   try {
     const settings = getAdminSettings();
-    res.json(settings);
+    const adminPassword = getAdminPassword();
+    res.json({ ...settings, adminPassword });
   } catch (error) {
     console.error('Error fetching admin settings:', error);
     res.status(500).json({ error: 'Failed to fetch admin settings' });
@@ -312,6 +313,20 @@ app.post('/api/admin/settings/reset', (req, res) => {
   } catch (error) {
     console.error('Error resetting admin settings:', error);
     res.status(500).json({ error: 'Failed to reset admin settings' });
+  }
+});
+
+app.put('/api/admin/password', (req, res) => {
+  try {
+    const { newPassword } = req.body;
+    if (!newPassword || newPassword.trim() === '') {
+      return res.status(400).json({ error: 'New password is required' });
+    }
+    updateAdminPassword(newPassword.trim());
+    res.json({ success: true, message: 'Password updated successfully' });
+  } catch (error) {
+    console.error('Error updating admin password:', error);
+    res.status(500).json({ error: 'Failed to update password' });
   }
 });
 

@@ -73,5 +73,19 @@ export const saveAdminSettings = (settings: Partial<AdminSettings>): void => {
 };
 
 export const resetAdminSettings = (): void => {
-  db.prepare('DELETE FROM admin_settings').run();
+  db.prepare('DELETE FROM admin_settings WHERE key != "adminPassword"').run();
+};
+
+export const updateAdminPassword = (newPassword: string): void => {
+  const stmt = db.prepare(`
+    INSERT OR REPLACE INTO admin_settings (key, value) 
+    VALUES ('adminPassword', ?)
+  `);
+  stmt.run(newPassword);
+};
+
+export const getAdminPassword = (): string | null => {
+  const stmt = db.prepare('SELECT value FROM admin_settings WHERE key = ?');
+  const row = stmt.get('adminPassword') as { value: string } | undefined;
+  return row?.value || null;
 };
