@@ -140,30 +140,79 @@ const Settings = () => {
     }
   };
 
-  const handleSaveSecurity = () => {
-    setIsSaving(true);
-    
-    // Simulate API call
-    setTimeout(() => {
-      setIsSaving(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
+  const handleSaveSecurity = async () => {
+    if (newPassword && newPassword !== confirmPassword) {
       toast({
-        title: "Security Settings Updated",
-        description: "Your security settings have been updated successfully.",
+        title: "Error",
+        description: "New passwords do not match.",
+        variant: "destructive",
       });
-    }, 1000);
+      return;
+    }
+
+    if (newPassword && newPassword.length < 8) {
+      toast({
+        title: "Error",
+        description: "Password must be at least 8 characters long.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      // Only attempt password change if fields are filled
+      if (currentPassword && newPassword) {
+        await api.updatePassword(user!.id, currentPassword, newPassword);
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+        toast({
+          title: "Password Updated",
+          description: "Your password has been changed successfully.",
+        });
+      }
+      
+      // Save 2FA setting
+      await api.saveSettings({
+        staffId: user!.id,
+        emailNotifications,
+        pushNotifications,
+        leaveUpdates,
+        systemAlerts
+      });
+      
+      if (!currentPassword && !newPassword) {
+        toast({
+          title: "Security Settings Updated",
+          description: "Your security settings have been updated successfully.",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update security settings.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleUploadAvatar = () => {
     setIsUploading(true);
-    
-    // Simulate API call
+    // Avatar upload would be implemented when file upload is supported
     setTimeout(() => {
       setIsUploading(false);
       toast({
-        title: "Avatar Updated",
-        description: "Your profile picture has been updated successfully.",
+        title: "Feature Coming Soon",
+        description: "Avatar upload will be available in a future update.",
       });
-    }, 1500);
+    }, 1000);
   };
 
   return (
@@ -421,21 +470,36 @@ const Settings = () => {
                       
                       <div className="space-y-2">
                         <Label htmlFor="current-password">Current Password</Label>
-                        <Input id="current-password" type="password" />
+                        <Input 
+                          id="current-password" 
+                          type="password" 
+                          value={currentPassword}
+                          onChange={(e) => setCurrentPassword(e.target.value)}
+                        />
                       </div>
                       
                       <div className="space-y-2">
                         <Label htmlFor="new-password">New Password</Label>
-                        <Input id="new-password" type="password" />
+                        <Input 
+                          id="new-password" 
+                          type="password" 
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                        />
                       </div>
                       
                       <div className="space-y-2">
                         <Label htmlFor="confirm-password">Confirm New Password</Label>
-                        <Input id="confirm-password" type="password" />
+                        <Input 
+                          id="confirm-password" 
+                          type="password" 
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                        />
                       </div>
                       
-                      <Button>
-                        Update Password
+                      <Button onClick={handleSaveSecurity} disabled={isSaving}>
+                        {isSaving ? "Updating..." : "Update Password"}
                       </Button>
                     </div>
                     

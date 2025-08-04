@@ -23,6 +23,7 @@ interface Activity {
   action: string;
   staff: string;
   time: string;
+  status?: string;
 }
 
 const AdminDashboard = () => {
@@ -119,7 +120,8 @@ const AdminDashboard = () => {
           activities.push({
             action: `${request.status} ${request.type.toLowerCase()} request`,
             staff: staff.name,
-            time: getRelativeTime(request.approvedDate!)
+            time: getRelativeTime(request.approvedDate!),
+            status: request.status
           });
         }
       });
@@ -136,7 +138,8 @@ const AdminDashboard = () => {
           activities.push({
             action: `Applied for ${request.type.toLowerCase()}`,
             staff: staff.name,
-            time: getRelativeTime(request.appliedDate)
+            time: getRelativeTime(request.appliedDate),
+            status: 'Pending'
           });
         }
       });
@@ -158,12 +161,14 @@ const AdminDashboard = () => {
   const getRelativeTime = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
-    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
+    const diffInMs = now.getTime() - date.getTime();
+    const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
+    const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60));
+    const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
     
-    if (diffInHours < 1) return "Just now";
+    if (diffInMinutes < 1) return "Just now";
+    if (diffInMinutes < 60) return `${diffInMinutes} minute${diffInMinutes > 1 ? 's' : ''} ago`;
     if (diffInHours < 24) return `${diffInHours} hour${diffInHours > 1 ? 's' : ''} ago`;
-    
-    const diffInDays = Math.floor(diffInHours / 24);
     if (diffInDays < 7) return `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`;
     
     return date.toLocaleDateString();
@@ -384,16 +389,27 @@ const AdminDashboard = () => {
               <h2 className="text-xl font-semibold mb-4">Recent Activity</h2>
               {recentActivity.length > 0 ? (
                 <div className="space-y-4">
-                  {recentActivity.map((activity, index) => (
-                    <div key={index} className="flex items-start gap-3">
-                      <div className="w-2 h-2 bg-blue-600 rounded-full mt-2 flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium">{activity.staff}</p>
-                        <p className="text-sm text-muted-foreground">{activity.action}</p>
-                        <p className="text-xs text-muted-foreground">{activity.time}</p>
+                  {recentActivity.map((activity, index) => {
+                    const getBulletColor = (status?: string) => {
+                      switch (status) {
+                        case 'Approved': return 'bg-green-600';
+                        case 'Rejected': return 'bg-red-600';
+                        case 'Pending': return 'bg-blue-600';
+                        default: return 'bg-blue-600';
+                      }
+                    };
+                    
+                    return (
+                      <div key={index} className="flex items-start gap-3">
+                        <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${getBulletColor(activity.status)}`} />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium">{activity.staff}</p>
+                          <p className="text-sm text-muted-foreground">{activity.action}</p>
+                          <p className="text-xs text-muted-foreground">{activity.time}</p>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="text-center py-8 text-muted-foreground">

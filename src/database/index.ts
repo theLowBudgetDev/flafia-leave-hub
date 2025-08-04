@@ -73,6 +73,7 @@ addColumnIfMissing('sickLeave', 'INTEGER NOT NULL DEFAULT 0');
 addColumnIfMissing('maternityLeave', 'INTEGER NOT NULL DEFAULT 0');
 addColumnIfMissing('paternityLeave', 'INTEGER NOT NULL DEFAULT 0');
 addColumnIfMissing('emergencyLeave', 'INTEGER NOT NULL DEFAULT 0');
+addColumnIfMissing('password', 'TEXT');
 // --- END MIGRATION ---
 
 // Create admin_settings table
@@ -91,11 +92,11 @@ if (staffCount.count === 0) {
   
   // Insert admin user
   const insertStaff = db.prepare(`
-    INSERT INTO staff (id, name, email, department, position, totalLeave, usedLeave, pendingLeave, phone, annualLeave, sickLeave, maternityLeave, paternityLeave, emergencyLeave)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO staff (id, name, email, department, position, totalLeave, usedLeave, pendingLeave, phone, annualLeave, sickLeave, maternityLeave, paternityLeave, emergencyLeave, password)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   
-  insertStaff.run('admin-1', 'Admin User', 'admin@fulafia.edu.ng', 'Human Resources', 'HR Manager', 25, 0, 0, '08030001111', 0, 0, 0, 0, 0);
+  insertStaff.run('admin-1', 'Admin User', 'admin@fulafia.edu.ng', 'Human Resources', 'Administrator', 25, 0, 0, '08030001111', 0, 0, 0, 0, 0, null);
   
   // Set admin password
   const insertPassword = db.prepare(`

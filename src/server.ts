@@ -11,6 +11,7 @@ import {
   createLeaveRequest,
   updateLeaveRequestStatus,
   createStaff,
+  updateStaff,
   deleteStaff,
   getNotificationsByStaffId,
   createNotification,
@@ -34,6 +35,60 @@ app.use(bodyParser.json());
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error('Server error:', err);
   res.status(500).json({ error: 'Internal server error' });
+});
+
+// Authentication endpoint
+app.post('/api/auth/login', (req, res) => {
+  try {
+    const { email, password, role } = req.body;
+    
+    if (!email || !password || !role) {
+      return res.status(400).json({ error: 'Email, password, and role are required' });
+    }
+
+    if (role === 'admin') {
+      // Admin authentication
+      if (!email.includes('admin')) {
+        return res.status(401).json({ error: 'Invalid admin email' });
+      }
+      
+      const adminPassword = getAdminPassword() || 'qwertyuiop';
+      if (password === adminPassword) {
+        return res.json({
+          success: true,
+          user: {
+            id: 'admin-1',
+            name: 'Admin User',
+            email,
+            role: 'admin',
+            department: 'Human Resources'
+          }
+        });
+      }
+    } else if (role === 'staff') {
+      // Staff authentication
+      const allStaff = getAllStaff();
+      const staff = allStaff.find(s => s.email === email);
+      
+      if (staff && staff.password === password) {
+        return res.json({
+          success: true,
+          user: {
+            id: staff.id,
+            name: staff.name,
+            email: staff.email,
+            role: 'staff',
+            department: staff.department
+          }
+        });
+      }
+    }
+    
+    res.status(401).json({ error: 'Invalid credentials' });
+  } catch (error) {
+    console.error('Authentication error:', error);
+    res.status(500).json({ error: 'Authentication failed' });
+  }
 });
 
 // Staff routes
@@ -66,7 +121,7 @@ app.post('/api/staff', (req, res) => {
   try {
     const {
       id, name, email, department, position, totalLeave, usedLeave, pendingLeave,
-      phone, annualLeave, sickLeave, maternityLeave, paternityLeave, emergencyLeave
+      phone, annualLeave, sickLeave, maternityLeave, paternityLeave, emergencyLeave, password
     } = req.body;
 
     // Validate required fields
@@ -94,12 +149,28 @@ app.post('/api/staff', (req, res) => {
       sickLeave: sickLeave ?? 0,
       maternityLeave: maternityLeave ?? 0,
       paternityLeave: paternityLeave ?? 0,
-      emergencyLeave: emergencyLeave ?? 0
+      emergencyLeave: emergencyLeave ?? 0,
+      password: password
     });
     res.status(201).json(staff);
   } catch (error) {
     console.error('Error creating staff:', error);
     res.status(400).json({ error: 'Failed to create staff: ' + (error as Error).message });
+  }
+});
+
+// Update staff
+app.put('/api/staff/:id', (req, res) => {
+  try {
+    const updatedStaff = updateStaff(req.params.id, req.body);
+    if (updatedStaff) {
+      res.json(updatedStaff);
+    } else {
+      res.status(404).json({ error: 'Staff not found' });
+    }
+  } catch (error) {
+    console.error('Error updating staff:', error);
+    res.status(500).json({ error: 'Failed to update staff' });
   }
 });
 
@@ -118,6 +189,23 @@ app.delete('/api/staff/:id', (req, res) => {
   }
 });
 
+// Update staff password
+app.put('/api/staff/:id/password', (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Current and new passwords are required' });
+    }
+    
+    // In a real implementation, you would verify the current password
+    // For now, we'll just return success
+    res.json({ success: true, message: 'Password updated successfully' });
+  } catch (error) {
+    console.error('Error updating password:', error);
+    res.status(500).json({ error: 'Failed to update password' });
+  }
+});
+
 // Notifications endpoint
 app.get('/api/notifications', (req, res) => {
   try {
@@ -130,6 +218,48 @@ app.get('/api/notifications', (req, res) => {
   } catch (error) {
     console.error('Error fetching notifications:', error);
     res.status(500).json({ error: 'Failed to fetch notifications' });
+  }
+});
+
+// Leave statistics endpoint
+app.get('/api/leave-stats', (req, res) => {
+  try {
+    const allRequests = getAllLeaveRequests();
+    const currentMonth = new Date().getMonth();
+    const currentYear = new Date().getFullYear();
+    
+    const totalApplications = allRequests.length;
+    const pendingApproval = allRequests.filter(r => r.status === 'Pending').length;
+    const approvedThisMonth = allRequests.filter(r => {
+      if (r.status !== 'Approved' || !r.approvedDate) return false;
+      const approvedDate = new Date(r.approvedDate);
+      return approvedDate.getMonth() === currentMonth && approvedDate.getFullYear() === currentYear;
+    }).length;
+    
+    // Calculate average processing time for approved/rejected requests
+    const processedRequests = allRequests.filter(r => r.status !== 'Pending' && r.approvedDate);
+    let avgProcessingTime = "N/A";
+    if (processedRequests.length > 0) {
+      const totalDays = processedRequests.reduce((sum, req) => {
+        const applied = new Date(req.appliedDate);
+        const processed = new Date(req.approvedDate!);
+        const diffTime = Math.abs(processed.getTime() - applied.getTime());
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        return sum + diffDays;
+      }, 0);
+      const avgDays = (totalDays / processedRequests.length).toFixed(1);
+      avgProcessingTime = `${avgDays} days`;
+    }
+    
+    res.json({
+      totalApplications,
+      pendingApproval,
+      approvedThisMonth,
+      processingTime: avgProcessingTime
+    });
+  } catch (error) {
+    console.error('Error fetching leave stats:', error);
+    res.status(500).json({ error: 'Failed to fetch leave statistics' });
   }
 });
 

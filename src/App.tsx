@@ -23,6 +23,7 @@ import Contact from "./pages/Contact";
 import AdminCalendar from "./pages/admin/AdminCalendar";
 import AdminReports from "./pages/admin/AdminReports";
 import AdminSettings from "./pages/admin/AdminSettings";
+import AdminProfile from "./pages/admin/AdminProfile";
 import Notifications from "./pages/Notifications";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
@@ -109,6 +110,11 @@ const App = () => (
               <Route path="/admin/settings" element={
                 <ProtectedRoute requiredRole="admin">
                   <AdminSettings />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/profile" element={
+                <ProtectedRoute requiredRole="admin">
+                  <AdminProfile />
                 </ProtectedRoute>
               } />
               

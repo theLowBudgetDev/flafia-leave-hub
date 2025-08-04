@@ -19,7 +19,7 @@ export const getStaffByEmail = (email: string): Staff | undefined => {
   return staff as Staff | undefined;
 };
 
-export const createStaff = (staff: Omit<Staff, 'id'> & { id?: string }): Staff => {
+export const createStaff = (staff: Omit<Staff, 'id'> & { id?: string; password?: string }): Staff => {
   // Generate a unique ID if not provided
   const id = staff.id || `staff-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
   
@@ -32,8 +32,8 @@ export const createStaff = (staff: Omit<Staff, 'id'> & { id?: string }): Staff =
   const stmt = db.prepare(`
     INSERT INTO staff (
       id, name, email, department, position, totalLeave, usedLeave, pendingLeave,
-      phone, annualLeave, sickLeave, maternityLeave, paternityLeave, emergencyLeave
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      phone, annualLeave, sickLeave, maternityLeave, paternityLeave, emergencyLeave, password
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   stmt.run(
     id,
@@ -49,9 +49,30 @@ export const createStaff = (staff: Omit<Staff, 'id'> & { id?: string }): Staff =
     staff.sickLeave ?? 0,
     staff.maternityLeave ?? 0,
     staff.paternityLeave ?? 0,
-    staff.emergencyLeave ?? 0
+    staff.emergencyLeave ?? 0,
+    staff.password ?? null
   );
   return getStaffById(id)!;
+};
+
+export const updateStaff = (id: string, updates: Partial<Omit<Staff, 'id'>>): Staff | undefined => {
+  const fields = [];
+  const values = [];
+  
+  for (const [key, value] of Object.entries(updates)) {
+    if (value !== undefined) {
+      fields.push(`${key} = ?`);
+      values.push(value);
+    }
+  }
+  
+  if (fields.length === 0) return getStaffById(id);
+  
+  values.push(id);
+  const stmt = db.prepare(`UPDATE staff SET ${fields.join(', ')} WHERE id = ?`);
+  const info = stmt.run(...values);
+  
+  return info.changes > 0 ? getStaffById(id) : undefined;
 };
 
 export const deleteStaff = (id: string): boolean => {
@@ -145,7 +166,7 @@ export const getLeaveRequestById = (id: number): LeaveRequest | undefined => {
 };
 
 export const createLeaveRequest = (request: Omit<LeaveRequest, 'id' | 'appliedDate' | 'status'>): LeaveRequest => {
-  const appliedDate = new Date().toISOString().split('T')[0];
+  const appliedDate = new Date().toISOString();
   const status = 'Pending';
   const stmt = db.prepare(`
     INSERT INTO leave_requests (staffId, type, startDate, endDate, days, reason, status, appliedDate)
@@ -175,7 +196,7 @@ export const updateLeaveRequestStatus = (
   approvedBy?: string,
   rejectedReason?: string
 ): LeaveRequest | undefined => {
-  const approvedDate = status === "Approved" ? new Date().toISOString().split('T')[0] : null;
+  const approvedDate = new Date().toISOString();
   const stmt = db.prepare(`
     UPDATE leave_requests
     SET status = ?, approvedBy = ?, approvedDate = ?, rejectedReason = ?

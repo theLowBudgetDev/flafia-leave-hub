@@ -58,7 +58,7 @@ export const ProfileDropdown = () => {
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
           <Link 
-            to={user.role === "admin" ? "/admin/settings" : "/profile"} 
+            to={user.role === "admin" ? "/admin/profile" : "/profile"} 
             className="flex items-center"
             onClick={() => document.body.click()}
           >

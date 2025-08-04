@@ -38,6 +38,14 @@ import {
   UserPlus,
   Loader2
 } from "lucide-react";
+import { 
+  Pagination, 
+  PaginationContent, 
+  PaginationItem, 
+  PaginationLink, 
+  PaginationNext, 
+  PaginationPrevious 
+} from "@/components/ui/pagination";
 import { useToast } from "@/hooks/use-toast";
 import { api, Staff } from "@/services/api";
 
@@ -51,6 +59,9 @@ const StaffManagement = () => {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  
+  const itemsPerPage = 10;
 
   // Form state
   const [formData, setFormData] = useState({
@@ -207,6 +218,11 @@ const StaffManagement = () => {
   });
 
   const departments = Array.from(new Set(staff.map(s => s.department).filter(Boolean)));
+  
+  // Pagination
+  const totalPages = Math.ceil(filteredStaff.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedStaff = filteredStaff.slice(startIndex, startIndex + itemsPerPage);
 
   const exportToCSV = () => {
     const headers = ['Name', 'Email', 'Department', 'Position', 'Phone', 'Annual Leave', 'Sick Leave'];
@@ -386,7 +402,7 @@ const StaffManagement = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredStaff.map((member) => (
+                {paginatedStaff.map((member) => (
                   <TableRow key={member.id}>
                     <TableCell className="font-medium">{member.name}</TableCell>
                     <TableCell>{member.email}</TableCell>
@@ -418,6 +434,40 @@ const StaffManagement = () => {
                 ))}
               </TableBody>
             </Table>
+            
+            {totalPages > 1 && (
+              <div className="mt-6">
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious 
+                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                        className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                      />
+                    </PaginationItem>
+                    
+                    {Array.from({ length: totalPages }).map((_, index) => (
+                      <PaginationItem key={index}>
+                        <PaginationLink
+                          onClick={() => setCurrentPage(index + 1)}
+                          isActive={currentPage === index + 1}
+                          className="cursor-pointer"
+                        >
+                          {index + 1}
+                        </PaginationLink>
+                      </PaginationItem>
+                    ))}
+                    
+                    <PaginationItem>
+                      <PaginationNext 
+                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                        className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              </div>
+            )}
           </div>
         </Card>
       </main>

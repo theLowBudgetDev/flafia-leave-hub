@@ -40,6 +40,14 @@ import {
   FileText,
   Loader2
 } from "lucide-react";
+import { 
+  Pagination, 
+  PaginationContent, 
+  PaginationItem, 
+  PaginationLink, 
+  PaginationNext, 
+  PaginationPrevious 
+} from "@/components/ui/pagination";
 import { useToast } from "@/hooks/use-toast";
 import { api, LeaveRequest, Staff } from "@/services/api";
 
@@ -50,6 +58,10 @@ const AdminReports = () => {
   const [staff, setStaff] = useState<Staff[]>([]);
   const [selectedPeriod, setSelectedPeriod] = useState("this-year");
   const [selectedDepartment, setSelectedDepartment] = useState("all");
+  const [deptCurrentPage, setDeptCurrentPage] = useState(1);
+  const [staffCurrentPage, setStaffCurrentPage] = useState(1);
+  
+  const itemsPerPage = 10;
 
   useEffect(() => {
     fetchReportData();
@@ -388,7 +400,7 @@ const AdminReports = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {departmentStats.map((dept) => (
+                  {departmentStats.slice((deptCurrentPage - 1) * itemsPerPage, deptCurrentPage * itemsPerPage).map((dept) => (
                     <TableRow key={dept.department}>
                       <TableCell className="font-medium">{dept.department}</TableCell>
                       <TableCell>{dept.totalStaff}</TableCell>
@@ -403,6 +415,37 @@ const AdminReports = () => {
                   ))}
                 </TableBody>
               </Table>
+              {Math.ceil(departmentStats.length / itemsPerPage) > 1 && (
+                <div className="mt-6">
+                  <Pagination>
+                    <PaginationContent>
+                      <PaginationItem>
+                        <PaginationPrevious 
+                          onClick={() => setDeptCurrentPage(prev => Math.max(prev - 1, 1))}
+                          className={deptCurrentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                        />
+                      </PaginationItem>
+                      {Array.from({ length: Math.ceil(departmentStats.length / itemsPerPage) }).map((_, index) => (
+                        <PaginationItem key={index}>
+                          <PaginationLink
+                            onClick={() => setDeptCurrentPage(index + 1)}
+                            isActive={deptCurrentPage === index + 1}
+                            className="cursor-pointer"
+                          >
+                            {index + 1}
+                          </PaginationLink>
+                        </PaginationItem>
+                      ))}
+                      <PaginationItem>
+                        <PaginationNext 
+                          onClick={() => setDeptCurrentPage(prev => Math.min(prev + 1, Math.ceil(departmentStats.length / itemsPerPage)))}
+                          className={deptCurrentPage === Math.ceil(departmentStats.length / itemsPerPage) ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -425,7 +468,7 @@ const AdminReports = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {staffRequestCounts.map((staff) => (
+                  {staffRequestCounts.slice((staffCurrentPage - 1) * itemsPerPage, staffCurrentPage * itemsPerPage).map((staff) => (
                     <TableRow key={staff.name}>
                       <TableCell className="font-medium">{staff.name}</TableCell>
                       <TableCell>{staff.department || 'N/A'}</TableCell>
@@ -436,6 +479,37 @@ const AdminReports = () => {
                   ))}
                 </TableBody>
               </Table>
+              {Math.ceil(staffRequestCounts.length / itemsPerPage) > 1 && (
+                <div className="mt-6">
+                  <Pagination>
+                    <PaginationContent>
+                      <PaginationItem>
+                        <PaginationPrevious 
+                          onClick={() => setStaffCurrentPage(prev => Math.max(prev - 1, 1))}
+                          className={staffCurrentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                        />
+                      </PaginationItem>
+                      {Array.from({ length: Math.ceil(staffRequestCounts.length / itemsPerPage) }).map((_, index) => (
+                        <PaginationItem key={index}>
+                          <PaginationLink
+                            onClick={() => setStaffCurrentPage(index + 1)}
+                            isActive={staffCurrentPage === index + 1}
+                            className="cursor-pointer"
+                          >
+                            {index + 1}
+                          </PaginationLink>
+                        </PaginationItem>
+                      ))}
+                      <PaginationItem>
+                        <PaginationNext 
+                          onClick={() => setStaffCurrentPage(prev => Math.min(prev + 1, Math.ceil(staffRequestCounts.length / itemsPerPage)))}
+                          className={staffCurrentPage === Math.ceil(staffRequestCounts.length / itemsPerPage) ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

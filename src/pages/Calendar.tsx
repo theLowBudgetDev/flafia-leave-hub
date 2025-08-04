@@ -115,24 +115,136 @@ const Calendar = () => {
 
   const handleExportCalendar = () => {
     setIsExporting(true);
-    setTimeout(() => {
-      setIsExporting(false);
-      toast({
-        title: "Calendar Exported",
-        description: "Your leave calendar has been exported successfully.",
-      });
-    }, 1500);
+    
+    // Generate iCal content
+    const icalContent = generateICalContent();
+    
+    // Create and download file
+    const blob = new Blob([icalContent], { type: 'text/calendar;charset=utf-8' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `leave-calendar-${format(currentMonth, 'yyyy-MM')}.ics`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+    
+    setIsExporting(false);
+    toast({
+      title: "Calendar Exported",
+      description: "iCal file has been downloaded successfully.",
+    });
+  };
+  
+  const generateICalContent = () => {
+    const now = new Date();
+    const timestamp = now.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+    
+    let ical = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//FULafia//Leave Management System//EN',
+      'CALSCALE:GREGORIAN',
+      'METHOD:PUBLISH'
+    ];
+    
+    leaveRequests.forEach(leave => {
+      const startDate = new Date(leave.startDate);
+      const endDate = new Date(leave.endDate);
+      endDate.setDate(endDate.getDate() + 1); // iCal end date is exclusive
+      
+      ical.push(
+        'BEGIN:VEVENT',
+        `UID:leave-${leave.id}@fulafia.edu.ng`,
+        `DTSTAMP:${timestamp}`,
+        `DTSTART;VALUE=DATE:${format(startDate, 'yyyyMMdd')}`,
+        `DTEND;VALUE=DATE:${format(endDate, 'yyyyMMdd')}`,
+        `SUMMARY:${leave.type} - ${leave.staffName || 'Staff Leave'}`,
+        `DESCRIPTION:${leave.reason || 'No description provided'}`,
+        `STATUS:${leave.status.toUpperCase()}`,
+        'END:VEVENT'
+      );
+    });
+    
+    ical.push('END:VCALENDAR');
+    return ical.join('\r\n');
   };
 
   const handlePrintCalendar = () => {
     setIsPrinting(true);
-    setTimeout(() => {
-      setIsPrinting(false);
-      toast({
-        title: "Print Initiated",
-        description: "Your leave calendar has been sent to the printer.",
-      });
-    }, 1500);
+    
+    const printContent = `
+      <html>
+        <head>
+          <title>Leave Calendar - ${format(currentMonth, "MMMM yyyy")}</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            .header { text-align: center; margin-bottom: 30px; }
+            .calendar { width: 100%; border-collapse: collapse; }
+            .calendar th, .calendar td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+            .calendar th { background-color: #f5f5f5; font-weight: bold; }
+            .calendar td { height: 80px; vertical-align: top; position: relative; }
+            .has-leave { background-color: #e3f2fd; }
+            .leave-indicator { position: absolute; top: 2px; right: 2px; width: 8px; height: 8px; background-color: #2196f3; border-radius: 50%; }
+            .today { background-color: #fff3e0; font-weight: bold; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>Leave Calendar</h1>
+            <h2>${format(currentMonth, "MMMM yyyy")}</h2>
+          </div>
+          <table class="calendar">
+            <tr>
+              <th>Sun</th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th>
+            </tr>
+            ${generateCalendarRows()}
+          </table>
+        </body>
+      </html>
+    `;
+    
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(printContent);
+      printWindow.document.close();
+      printWindow.focus();
+      printWindow.print();
+      printWindow.close();
+    }
+    
+    setIsPrinting(false);
+    toast({
+      title: "Print Initiated",
+      description: "Calendar has been sent to printer.",
+    });
+  };
+  
+  const generateCalendarRows = () => {
+    const rows = [];
+    const startPadding = monthStart.getDay();
+    const totalCells = startPadding + daysInMonth.length;
+    const totalRows = Math.ceil(totalCells / 7);
+    
+    for (let week = 0; week < totalRows; week++) {
+      let row = '<tr>';
+      for (let day = 0; day < 7; day++) {
+        const cellIndex = week * 7 + day;
+        if (cellIndex < startPadding || cellIndex >= startPadding + daysInMonth.length) {
+          row += '<td></td>';
+        } else {
+          const date = daysInMonth[cellIndex - startPadding];
+          const isToday = isSameDay(date, new Date());
+          const dayHasLeaves = hasLeaves(date);
+          const classes = `${isToday ? 'today' : ''} ${dayHasLeaves ? 'has-leave' : ''}`;
+          row += `<td class="${classes}">${format(date, 'd')}${dayHasLeaves ? '<div class="leave-indicator"></div>' : ''}</td>`;
+        }
+      }
+      row += '</tr>';
+      rows.push(row);
+    }
+    return rows.join('');
   };
 
   const selectedDateLeaves = getSelectedDateLeaves();
@@ -232,7 +344,7 @@ const Calendar = () => {
                           {format(day, "d")}
                         </span>
                         {dayHasLeaves && (
-                          <span className="w-2 h-2 rounded-full bg-primary"></span>
+                          <span className="w-2 h-2 rounded-full bg-green-600"></span>
                         )}
                       </div>
                     </div>

@@ -233,22 +233,38 @@ const AdminSettings = () => {
                   
                   <div className="grid md:grid-cols-2 gap-4 pl-6 mt-2">
                     <div className="flex items-center space-x-2">
-                      <Switch id="new-request-email" defaultChecked />
+                      <Switch 
+                        id="new-request-email" 
+                        checked={settings.emailNotifications}
+                        onCheckedChange={(checked) => setSettings(prev => ({ ...prev, emailNotifications: checked }))}
+                      />
                       <Label htmlFor="new-request-email">New leave requests</Label>
                     </div>
                     
                     <div className="flex items-center space-x-2">
-                      <Switch id="status-change-email" defaultChecked />
+                      <Switch 
+                        id="status-change-email" 
+                        checked={settings.emailNotifications}
+                        onCheckedChange={(checked) => setSettings(prev => ({ ...prev, emailNotifications: checked }))}
+                      />
                       <Label htmlFor="status-change-email">Request status changes</Label>
                     </div>
                     
                     <div className="flex items-center space-x-2">
-                      <Switch id="reminder-email" defaultChecked />
+                      <Switch 
+                        id="reminder-email" 
+                        checked={settings.emailNotifications}
+                        onCheckedChange={(checked) => setSettings(prev => ({ ...prev, emailNotifications: checked }))}
+                      />
                       <Label htmlFor="reminder-email">Pending approval reminders</Label>
                     </div>
                     
                     <div className="flex items-center space-x-2">
-                      <Switch id="leave-start-email" defaultChecked />
+                      <Switch 
+                        id="leave-start-email" 
+                        checked={settings.emailNotifications}
+                        onCheckedChange={(checked) => setSettings(prev => ({ ...prev, emailNotifications: checked }))}
+                      />
                       <Label htmlFor="leave-start-email">Leave start/end reminders</Label>
                     </div>
                   </div>
@@ -260,28 +276,48 @@ const AdminSettings = () => {
                   <h3 className="text-lg font-medium text-foreground">System Notifications</h3>
                   
                   <div className="flex items-center space-x-2">
-                    <Switch id="system-notifications" defaultChecked />
+                    <Switch 
+                      id="system-notifications" 
+                      checked={settings.emailNotifications}
+                      onCheckedChange={(checked) => setSettings(prev => ({ ...prev, emailNotifications: checked }))}
+                    />
                     <Label htmlFor="system-notifications">Enable in-app notifications</Label>
                   </div>
                   
                   <div className="grid md:grid-cols-2 gap-4 pl-6 mt-2">
                     <div className="flex items-center space-x-2">
-                      <Switch id="new-request-system" defaultChecked />
+                      <Switch 
+                        id="new-request-system" 
+                        checked={settings.emailNotifications}
+                        onCheckedChange={(checked) => setSettings(prev => ({ ...prev, emailNotifications: checked }))}
+                      />
                       <Label htmlFor="new-request-system">New leave requests</Label>
                     </div>
                     
                     <div className="flex items-center space-x-2">
-                      <Switch id="status-change-system" defaultChecked />
+                      <Switch 
+                        id="status-change-system" 
+                        checked={settings.emailNotifications}
+                        onCheckedChange={(checked) => setSettings(prev => ({ ...prev, emailNotifications: checked }))}
+                      />
                       <Label htmlFor="status-change-system">Request status changes</Label>
                     </div>
                     
                     <div className="flex items-center space-x-2">
-                      <Switch id="reminder-system" defaultChecked />
+                      <Switch 
+                        id="reminder-system" 
+                        checked={settings.emailNotifications}
+                        onCheckedChange={(checked) => setSettings(prev => ({ ...prev, emailNotifications: checked }))}
+                      />
                       <Label htmlFor="reminder-system">Pending approval reminders</Label>
                     </div>
                     
                     <div className="flex items-center space-x-2">
-                      <Switch id="system-alerts" defaultChecked />
+                      <Switch 
+                        id="system-alerts" 
+                        checked={settings.emailNotifications}
+                        onCheckedChange={(checked) => setSettings(prev => ({ ...prev, emailNotifications: checked }))}
+                      />
                       <Label htmlFor="system-alerts">System alerts</Label>
                     </div>
                   </div>
@@ -350,22 +386,38 @@ const AdminSettings = () => {
                   
                   <div className="grid md:grid-cols-2 gap-4">
                     <div className="flex items-center space-x-2">
-                      <Switch id="require-uppercase" defaultChecked />
+                      <Switch 
+                        id="require-uppercase" 
+                        checked={settings.minPasswordLength >= 8}
+                        onCheckedChange={(checked) => setSettings(prev => ({ ...prev, minPasswordLength: checked ? Math.max(8, prev.minPasswordLength) : prev.minPasswordLength }))}
+                      />
                       <Label htmlFor="require-uppercase">Require uppercase letters</Label>
                     </div>
                     
                     <div className="flex items-center space-x-2">
-                      <Switch id="require-lowercase" defaultChecked />
+                      <Switch 
+                        id="require-lowercase" 
+                        checked={settings.minPasswordLength >= 8}
+                        onCheckedChange={(checked) => setSettings(prev => ({ ...prev, minPasswordLength: checked ? Math.max(8, prev.minPasswordLength) : prev.minPasswordLength }))}
+                      />
                       <Label htmlFor="require-lowercase">Require lowercase letters</Label>
                     </div>
                     
                     <div className="flex items-center space-x-2">
-                      <Switch id="require-numbers" defaultChecked />
+                      <Switch 
+                        id="require-numbers" 
+                        checked={settings.minPasswordLength >= 8}
+                        onCheckedChange={(checked) => setSettings(prev => ({ ...prev, minPasswordLength: checked ? Math.max(8, prev.minPasswordLength) : prev.minPasswordLength }))}
+                      />
                       <Label htmlFor="require-numbers">Require numbers</Label>
                     </div>
                     
                     <div className="flex items-center space-x-2">
-                      <Switch id="require-special" defaultChecked />
+                      <Switch 
+                        id="require-special" 
+                        checked={settings.minPasswordLength >= 8}
+                        onCheckedChange={(checked) => setSettings(prev => ({ ...prev, minPasswordLength: checked ? Math.max(8, prev.minPasswordLength) : prev.minPasswordLength }))}
+                      />
                       <Label htmlFor="require-special">Require special characters</Label>
                     </div>
                   </div>
@@ -399,7 +451,11 @@ const AdminSettings = () => {
                   </div>
                   
                   <div className="flex items-center space-x-2">
-                    <Switch id="force-logout" defaultChecked />
+                    <Switch 
+                      id="force-logout" 
+                      checked={settings.sessionTimeout <= 30}
+                      onCheckedChange={(checked) => setSettings(prev => ({ ...prev, sessionTimeout: checked ? 30 : 60 }))}
+                    />
                     <Label htmlFor="force-logout">Force logout after password change</Label>
                   </div>
                 </div>

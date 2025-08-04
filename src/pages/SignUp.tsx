@@ -84,7 +84,8 @@ const SignUp = () => {
         sickLeave: 10,
         maternityLeave: 90,
         paternityLeave: 7,
-        emergencyLeave: 3
+        emergencyLeave: 3,
+        password: formData.password
       });
       
       toast({

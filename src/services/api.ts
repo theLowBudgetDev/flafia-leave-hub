@@ -34,6 +34,7 @@ export interface Staff {
   maternityLeave: number;
   paternityLeave: number;
   emergencyLeave: number;
+  password?: string;
 }
 
 export interface Notification {
@@ -57,6 +58,18 @@ export interface Settings {
   pushNotifications: boolean;
   leaveUpdates: boolean;
   systemAlerts: boolean;
+}
+
+export interface AuthResponse {
+  success: boolean;
+  user?: {
+    id: string;
+    name: string;
+    email: string;
+    role: 'staff' | 'admin';
+    department: string;
+  };
+  error?: string;
 }
 
 
@@ -99,9 +112,24 @@ export const api = {
     return response.json();
   },
 
-  login: async (email: string, password: string) => {
-    // Implement login API call if needed
-    return { success: true };
+  login: async (email: string, password: string, role: 'staff' | 'admin') => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, role }),
+      });
+      
+      if (!response.ok) {
+        return { success: false, error: 'Invalid credentials' };
+      }
+      
+      const data = await response.json();
+      return { success: true, user: data.user };
+    } catch (error) {
+      console.error('Login error:', error);
+      return { success: false, error: 'Login failed' };
+    }
   },
 
   getLeaveRequests: async (staffId?: string): Promise<LeaveRequest[]> => {
@@ -174,13 +202,20 @@ export const api = {
   },
 
   getLeaveStats: async () => {
-    // Implement if backend endpoint available
-    return {
-      totalApplications: 1247,
-      pendingApproval: 23,
-      approvedThisMonth: 189,
-      processingTime: "2.3 days"
-    };
+    try {
+      const response = await fetch(`${API_BASE_URL}/leave-stats`);
+      if (!response.ok) throw new Error('Failed to fetch leave stats');
+      return response.json();
+    } catch (error) {
+      console.error('Error fetching leave stats:', error);
+      // Return default values if API fails
+      return {
+        totalApplications: 0,
+        pendingApproval: 0,
+        approvedThisMonth: 0,
+        processingTime: "N/A"
+      };
+    }
   },
 
   getStaffStats: async (staffId: string) => {
@@ -194,7 +229,7 @@ export const api = {
     };
   },
 
-  createStaff: async (staffData: Omit<Staff, 'id' | 'usedLeave' | 'pendingLeave'>): Promise<Staff> => {
+  createStaff: async (staffData: Omit<Staff, 'id' | 'usedLeave' | 'pendingLeave'> & { password?: string }): Promise<Staff> => {
     try {
       const response = await fetch(`${API_BASE_URL}/staff`, {
         method: 'POST',
@@ -202,7 +237,8 @@ export const api = {
         body: JSON.stringify({
           ...staffData,
           usedLeave: 0,
-          pendingLeave: 0
+          pendingLeave: 0,
+          password: staffData.password
         }),
       });
       
@@ -252,6 +288,26 @@ export const api = {
       return { success: true };
     } catch (error) {
       console.error('Error deleting staff:', error);
+      throw error;
+    }
+  },
+
+  updatePassword: async (staffId: string, currentPassword: string, newPassword: string): Promise<{ success: boolean }> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/staff/${staffId}/password`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to update password: ${errorText}`);
+      }
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Error updating password:', error);
       throw error;
     }
   }
